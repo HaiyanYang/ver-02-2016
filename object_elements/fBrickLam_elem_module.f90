@@ -267,14 +267,14 @@ end subroutine set_fBrickLam_elem
 
 
 
-pure subroutine integrate_fBrickLam_elem (elem, nodes, edges, matrix_cracks, minspacing, &
+pure subroutine integrate_fBrickLam_elem (elem, nodes, edges, matrix_cracks, &
 & layup, plylam_mat, plycoh_mat, interf_mat, K_matrix, F_vector, istat, emsg, predelam_interf)
 
 use parameter_module, only : DP, MSGLENGTH, STAT_SUCCESS, STAT_FAILURE, NDIM, &
                       & ZERO, NDIM, TRANSITION_ELEM
 use fnode_module,             only : fnode
 use fedge_module,             only : fedge
-use matrix_crack_module,      only : matrix_crack
+use matrix_crack_module,      only : ply_crack_list
 use lamina_material_module,   only : lamina_material, lamina_scaled_Gfc
 use cohesive_material_module, only : cohesive_material
 use fBrickPly_elem_module,    only : extract, integrate
@@ -284,8 +284,7 @@ use global_toolkit_module,    only : assembleKF
   type(fBrickLam_elem),     intent(inout) :: elem
   type(fnode),              intent(inout) :: nodes(:)
   type(fedge),              intent(inout) :: edges(:)
-  type(matrix_crack),       intent(inout) :: matrix_cracks(:,:)
-  real(DP),                 intent(in)    :: minspacing
+  type(ply_crack_list),     intent(inout) :: matrix_cracks(:)
   type(plyblock_layup),     intent(in)    :: layup(:)
   type(lamina_material),    intent(in)    :: plylam_mat
   type(cohesive_material),  intent(in)    :: plycoh_mat
@@ -385,8 +384,8 @@ use global_toolkit_module,    only : assembleKF
       plyblklam_mat = lamina_scaled_Gfc(plylam_mat, layup(i)%nplies)
       
       ! integrate this plyblk elem and update its nodes and edge status
-      call integrate (elem%plyblks(i), plyblknds, plyblkegs, matrix_cracks(:,i), &
-      & minspacing, layup(i)%angle, plyblklam_mat, plycoh_mat, Ki, Fi, istat, emsg)
+      call integrate (elem%plyblks(i), plyblknds, plyblkegs, matrix_cracks(i), &
+      & layup(i)%angle, plyblklam_mat, plycoh_mat, Ki, Fi, istat, emsg)
       if (istat == STAT_FAILURE) exit loop_plyblks
       
       ! assemble this elem's K and F

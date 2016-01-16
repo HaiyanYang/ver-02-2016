@@ -42,7 +42,6 @@ contains
   end subroutine set_fnm_nodes
 
 
-  !include 'inputs/fnm_edges.f90'
   subroutine set_fnm_edges()            
     use fedge_module,     only: update    
     use edge_list_module, only: edge_list 
@@ -68,7 +67,6 @@ contains
   end subroutine set_fnm_edges
 
 
-  !include 'inputs/fnm_elems.f90'
   subroutine set_fnm_elems()                                 
     use parameter_module,      only: DP, ZERO                        
     use elem_list_module,      only: layup, elem_list,&        
@@ -129,7 +127,6 @@ contains
   
   
   ! predelam
-  !include 'inputs/fnm_predelam.f90'
   subroutine set_fnm_predelam()         
     use predelam_list_module, only: predelam_elems, predelam_interf 
                                       
@@ -164,24 +161,32 @@ contains
   
   ! matrix cracks
   subroutine set_fnm_matrix_crack()         
-    use matrix_crack_list_module, only: matrix_crack_list, min_crack_spacing 
+    use parameter_module,         only: MIN_CRACK_SPACING
+    use matrix_crack_module,      only: set
+    use matrix_crack_list_module, only: lam_crack_list 
                                       
-    integer :: nplyblock, maxncrack                  
+    integer :: nplyblock, maxncrack, i                 
     
     nplyblock = 0
     maxncrack = 0
+    i = 0
     
     open (unit=115, file=trim(indir)//'fnm_matrix_crack.txt', status='old', action='read')              
 
     ! read user-input min crack spacing parameter
-    read(115, *) min_crack_spacing
+    read(115, *) MIN_CRACK_SPACING
     
     ! read no. of plyblocks in the laminate, and maximum no. of cracks possible for each plyblock
     read(115, *) nplyblock
     read(115, *) maxncrack
     
     if (maxncrack > 0) then
-      allocate(matrix_crack_list(maxncrack, nplyblock)
+      ! allocate laminate crack list
+      allocate(lam_crack_list(nplyblock))
+      ! allocate each ply crack list
+      do i = 1, nplyblock
+        call set(lam_crack_list(i),maxncrack)
+      end do
     end if
     
     close(115)

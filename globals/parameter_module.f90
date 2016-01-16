@@ -5,6 +5,8 @@ IMPLICIT NONE
 ! starting jelem no. of abaqus
 INTEGER, SAVE :: JELEM0 = 0
 
+! MIN CRACK SPACING, DEFINED AT INPUT
+REAL(DP), SAVE :: MIN_CRACK_SPACING = 0.0
 
 ! COMMON PARAMETERS ************************************************************
 
@@ -123,7 +125,8 @@ INTEGER, PARAMETER :: UNBREAKABLE_EDGE = -1
 ! XBRICK ELEMENT STATUS VARIABLE VALUES ----------------------------------------
 INTEGER, PARAMETER :: TRANSITION_ELEM   = 1, REFINEMENT_ELEM  = 2,        &
                     & CRACK_TIP_ELEM    = 3, CRACK_WAKE_ELEM  = 4,        &
-                    & MATRIX_CRACK_ELEM = 5, FIBRE_FAIL_ELEM  = 15
+                    & MATRIX_CRACK_ELEM = 5, FIBRE_FAIL_ELEM  = 15,       &
+                    & NO_FAILURE_ONSET  = -1
 !-------------------------------------------------------------------------------
 
 

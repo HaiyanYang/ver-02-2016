@@ -148,9 +148,9 @@ use edge_list_module,     only: edge_list
 use elem_list_module,     only: elem_list, elem_node_connec, elem_edge_connec, layup
 use material_list_module, only: UDSinglePly_material, matrixCrack_material, &
                                 & interface_material
-use predelam_list_module, only: predelam_elems, predelam_interf
-use matrix_crack_list_module, only: matrix_crack_list, min_crack_spacing
-use fBrickLam_elem_module,only: fBrickLam_elem, integrate
+use predelam_list_module,     only: predelam_elems, predelam_interf
+use matrix_crack_list_module, only: lam_crack_list
+use fBrickLam_elem_module,    only: fBrickLam_elem, integrate
 use output_module
 
   ! use Abaqus default implict type declaration for passed-in variables only
@@ -292,7 +292,7 @@ use output_module
   end if
 
   ! integrate this element. elem_list(jelem)
-  call integrate (elem_list(ajelem), nodes, edges, matrix_crack_list, min_crack_spacing, &
+  call integrate (elem_list(ajelem), nodes, edges, lam_crack_list, &
   &  layup, UDSinglePly_material, matrixCrack_material, interface_material,         &
   &  Kmat, Fvec, istat, emsg, predelam)
   if (istat == STAT_FAILURE) then
@@ -313,7 +313,7 @@ use output_module
 !  close(110)
 
   ! update to global lists
-  ! ** NOTE: matrix_crack_list is updated directly within the sub-programs.
+  ! ** NOTE: lam_crack_list is updated directly within the sub-programs.
   node_list(node_cnc) = nodes
   edge_list(edge_cnc) = edges
   
@@ -337,12 +337,12 @@ end subroutine uel
 !   subroutine to clean up all the datalist
 !---------------------------------------------------------!
 subroutine cleanup_all()
-use material_list_module, only: empty_material_list
-use node_list_module,     only: empty_node_list
-use edge_list_module,     only: empty_edge_list
-use elem_list_module,     only: empty_elem_list
-use predelam_list_module, only: empty_predelam_list
-use matrix_crack_list_module, only: matrix_crack_list
+use material_list_module,     only: empty_material_list
+use node_list_module,         only: empty_node_list
+use edge_list_module,         only: empty_edge_list
+use elem_list_module,         only: empty_elem_list
+use predelam_list_module,     only: empty_predelam_list
+use matrix_crack_list_module, only: empty_matrix_crack_list
 
   call empty_material_list
   call empty_node_list

@@ -265,15 +265,15 @@ end subroutine extract_fBrickPly_elem
 
 
 
-pure subroutine integrate_fBrickPly_elem (elem, nodes, edges, matrix_cracks, &
-& minspacing, ply_angle, lam_mat, coh_mat, K_matrix, F_vector, istat, emsg)
+pure subroutine integrate_fBrickPly_elem (elem, nodes, edges, matrix_cracks,   &
+& ply_angle, lam_mat, coh_mat, K_matrix, F_vector, istat, emsg)
 use parameter_module,         only : DP, MSGLENGTH, STAT_SUCCESS, STAT_FAILURE,&
                               & ZERO, ONE, HALF, INTACT, TRANSITION_ELEM,      &
                               & REFINEMENT_ELEM,  CRACK_TIP_ELEM,              &
-                              & CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM
+                              & CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM, NO_FAILURE_ONSET
 use fnode_module,             only : fnode, extract, update
 use fedge_module,             only : fedge, extract
-use matrix_crack_module,      only : matrix_crack
+use matrix_crack_module,      only : ply_crack_list
 use lamina_material_module,   only : lamina_material
 use cohesive_material_module, only : cohesive_material
 use global_clock_module,      only : GLOBAL_CLOCK, clock_in_sync
@@ -282,8 +282,7 @@ use global_toolkit_module,    only : distance
   type(fBrickPly_elem),     intent(inout) :: elem
   type(fnode),              intent(inout) :: nodes(NNODE)
   type(fedge),              intent(inout) :: edges(NEDGE)
-  type(matrix_crack),       intent(inout) :: matrix_cracks(:)
-  real(DP),                 intent(in)    :: minspacing
+  type(ply_crack_list),     intent(inout) :: matrix_cracks
   real(DP),                 intent(in)    :: ply_angle
   type(lamina_material),    intent(in)    :: lam_mat
   type(cohesive_material),  intent(in)    :: coh_mat
@@ -361,8 +360,8 @@ use global_toolkit_module,    only : distance
   !       * if its partition is UPDATED by the failure criterion,
   !         newpartition becomes TRUE and re-integrate subelems with NOfailure
   !
-  case (INTACT, TRANSITION_ELEM, REFINEMENT_ELEM, &
-  &              CRACK_TIP_ELEM, CRACK_WAKE_ELEM) elstatuscase
+  case (NO_FAILURE_ONSET, INTACT, TRANSITION_ELEM, &
+  &     REFINEMENT_ELEM, CRACK_TIP_ELEM, CRACK_WAKE_ELEM) elstatuscase
 
       !***** check edge status variables *****
       ! update elem status according to edge status values
@@ -412,7 +411,7 @@ use global_toolkit_module,    only : distance
             ! failure criterion partitions elem of any status directly into
             ! MATRIX_CRACK_ELEM partition if the failure criterion judges
             ! any subelem reaches MATRIX/FIBRE failure onset
-            call failure_criterion_partition (elem, nodes, edges, ply_angle, istat, emsg)
+            call failure_criterion_partition (elem, nodes, edges, matrix_cracks, ply_angle, istat, emsg)
             if (istat == STAT_FAILURE) then
               emsg = trim(emsg)//trim(msgloc)
               call clean_up (K_matrix, F_vector)
@@ -617,7 +616,8 @@ use parameter_module,      only : NDIM, DP, MSGLENGTH, STAT_SUCCESS, STAT_FAILUR
                           & TRANSITION_EDGE, REFINEMENT_EDGE,                 &
                           & CRACK_TIP_EDGE,  COH_CRACK_EDGE,                  &
                           & TRANSITION_ELEM, REFINEMENT_ELEM,                 &
-                          & CRACK_TIP_ELEM,  CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM
+                          & CRACK_TIP_ELEM,  CRACK_WAKE_ELEM,                 &
+                          & MATRIX_CRACK_ELEM, NO_FAILURE_ONSET
 use fnode_module,          only : fnode, extract, update
 use fedge_module,          only : fedge, extract, update
 use global_toolkit_module, only : crack_elem_cracktip2d
@@ -715,7 +715,7 @@ use global_toolkit_module, only : crack_elem_cracktip2d
   !
   jbe1jbe2: select case (elstatus)
 
-  case (INTACT) jbe1jbe2
+  case (NO_FAILURE_ONSET, INTACT) jbe1jbe2
       ! if elem is INTACT, return of no edge fails; otherwise, find jbe1
       ! as the most critical edge
       if ( count(edge_status(1:NEDGE_SURF) > INTACT) == 0 ) then
@@ -833,7 +833,8 @@ use global_toolkit_module, only : crack_elem_cracktip2d
 
     ! update edge jbe2 fl. nodes coords when elem was previously intact
     ! (on both surfs)
-    if (elem%curr_status == INTACT) then
+    if (elem%curr_status == INTACT .or. &
+    &   elem%curr_status == NO_FAILURE_ONSET) then
     
       ! update the coords of two fl. nodes on edge jbe2
       ! of both top and bot surfaces, assuming a perpendicular matrix crack
@@ -869,12 +870,12 @@ use global_toolkit_module, only : crack_elem_cracktip2d
       elem%crack_edges(1) = jbe1
       elem%crack_edges(2) = jbe2
       
-      ! update other edges to tie_bcd = true
-      do i = 1, NEDGE_SURF
-        if (i==jbe1 .or. i==jbe2) cycle
-        call update(edges(i),            tie_bcd=.true.)
-        call update(edges(i+NEDGE_SURF), tie_bcd=.true.)
-      end do
+      !! update other edges to tie_bcd = true
+      !do i = 1, NEDGE_SURF
+      !  if (i==jbe1 .or. i==jbe2) cycle
+      !  call update(edges(i),            tie_bcd=.true.)
+      !  call update(edges(i+NEDGE_SURF), tie_bcd=.true.)
+      !end do
       
     end if
     
@@ -886,8 +887,9 @@ use global_toolkit_module, only : crack_elem_cracktip2d
     call update(edges(jbe2+NEDGE_SURF), estat=eledgestatus_lcl(jbe2))
 
     ! update elem partition when changing from intact or trans. elem
-    if (elem%curr_status == INTACT .or. &
-    &   elem%curr_status == TRANSITION_ELEM) then
+    if (elem%curr_status == INTACT          .or. &
+    &   elem%curr_status == TRANSITION_ELEM .or. &
+    &   elem%curr_status == NO_FAILURE_ONSET) then
       ! update to elem components 
       ! (must be placed after the logical control & before partition)
       elem%curr_status     = elstatus
@@ -1000,7 +1002,7 @@ end subroutine edge_status_partition
 
 
 
-pure subroutine failure_criterion_partition (elem, nodes, edges, ply_angle, istat, emsg)
+pure subroutine failure_criterion_partition (elem, nodes, edges, matrix_cracks, ply_angle, istat, emsg)
 ! Purpose:
 ! this subroutine updates elem status & partition to MATRIX_CRACK_ELEM
 ! if any sub elem is nolonger INTACT
@@ -1008,9 +1010,11 @@ use parameter_module,       only : DP, NDIM, MSGLENGTH, STAT_SUCCESS, STAT_FAILU
                           & REAL_ALLOC_ARRAY, ZERO, INTACT,                   &
                           & TRANSITION_EDGE, COH_CRACK_EDGE,                  &
                           & TRANSITION_ELEM, REFINEMENT_ELEM,                 &
-                          & CRACK_TIP_ELEM,  CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM
+                          & CRACK_TIP_ELEM,  CRACK_WAKE_ELEM,                 &
+                          & MATRIX_CRACK_ELEM, NO_FAILURE_ONSET
 use fnode_module,           only : fnode, extract, update
 use fedge_module,           only : fedge, extract, update
+use matrix_crack_module,    only : ply_crack_list, newcrack_ok, add_newcrack
 use brickPly_elem_module,   only : extract
 use abstPly_elem_module,    only : extract
 use coh8Crack_elem_module,  only : extract
@@ -1020,6 +1024,7 @@ use global_toolkit_module,  only : crack_elem_centroid2d
   type(fBrickPly_elem),     intent(inout) :: elem
   type(fnode),              intent(inout) :: nodes(NNODE)
   type(fedge),              intent(inout) :: edges(NEDGE)
+  type(ply_crack_list),     intent(inout) :: matrix_cracks
   real(DP),                 intent(in)    :: ply_angle
   integer,                  intent(out)   :: istat
   character(len=MSGLENGTH), intent(out)   :: emsg
@@ -1030,11 +1035,11 @@ use global_toolkit_module,  only : crack_elem_centroid2d
   real(DP)                  :: subelphi, elphi
   real(DP)                  :: coords(NDIM,NNODE)
   real(DP)                  :: crackpoints(2,2), crackpoint1(2), crackpoint2(2)
-  real(DP)                  :: botsurf_coords(2,NEDGE_SURF)
+  real(DP)                  :: botsurf_coords(2,NEDGE_SURF), centroid(2)
   real(DP)                  :: ztop, zbot
   integer                   :: crackedges(2), jbe1, jbe2, jnode
   integer                   :: loc(1)
-  logical                   :: failed
+  logical                   :: failed, nonewcrack
   integer                   :: i
 
   ! --------------------------------------------------------------------!
@@ -1059,6 +1064,7 @@ use global_toolkit_module,  only : crack_elem_centroid2d
   crackpoint1       = ZERO
   crackpoint2       = ZERO
   botsurf_coords    = ZERO
+  centroid          = ZERO
   ztop              = ZERO
   zbot              = ZERO
   crackedges        = 0
@@ -1067,6 +1073,7 @@ use global_toolkit_module,  only : crack_elem_centroid2d
   jnode             = 0
   loc               = 0
   failed            = .false.
+  nonewcrack        = .false.
   i = 0
 
   ! check input validity
@@ -1101,11 +1108,17 @@ use global_toolkit_module,  only : crack_elem_centroid2d
 
   ! set failed to false before the update in main loop
   failed = .false.
+  ! set nonewcrack to false before the main loop
+  nonewcrack = .false.
 
-  select case (elem%curr_status)
+  loop1: select case (elem%curr_status)
+
+  case (NO_FAILURE_ONSET) loop1
+      ! element not allow to do failure partition, return directly
+      return
 
   ! elem is INTACT, check intact_elem fstat:
-  case (INTACT)
+  case (INTACT) loop1
       ! check expected no. of cracked edges
       if ( count(elem%edge_status_lcl > INTACT) /= 0 ) then
         istat = STAT_FAILURE
@@ -1115,44 +1128,63 @@ use global_toolkit_module,  only : crack_elem_centroid2d
       end if
       ! proceed if no error
       call extract(elem%intact_elem, fstat=subelstatus, phi=subelphi)
+      ! if element remains intact, skip the rest and exit loop directly
+      if (subelstatus == INTACT) then
+        exit loop1
+      end if
+      
       ! if matrix/fibre failure onset, crack elem from centroid and
       ! find the edge indices of the two cracked edges (jbe1 and jbe2)
       ! the crack_elem_centroid2d subroutine is used for this purpose
       ! some inputs need to be prepared
-      if (subelstatus /= INTACT) then
-        ! update failed to true
-        failed = .true.
-        ! 2D nodal coords of the bottom quad surface (first 4 nodes of the elem)
-        do i = 1, NEDGE_SURF
-          botsurf_coords(:,i) = coords(1:2,i)
-        end do
-        ! use the crack_elem_centroid2d subroutine to find 2 cross points and 2
-        ! crack edges of the elem, with crack passing elem centroid
-        call crack_elem_centroid2d (nedge = NEDGE_SURF,             &
-        &                     crack_angle = ply_angle,              &
-        &                          coords = botsurf_coords,         &
-        &                  nodes_on_edges = ENDNODES_ON_BOT_EDGES,  &
-        &                           istat = istat,                  &
-        &                            emsg = emsg,                   &
-        &               edge_crack_points = crackpoints,            &
-        &              crack_edge_indices = crackedges)
-        if (istat == STAT_FAILURE) then
-          emsg = trim(emsg)//trim(msgloc)
-          return
-        end if
-        ! extract crack edge indices
-        jbe1 = crackedges(1)
-        jbe2 = crackedges(2)
-        ! check if they are correct
-        if (any(crackedges <= 0) .or. (jbe1 == jbe2)) then
-          istat = STAT_FAILURE
-          emsg  = 'wrong broken edges from centroid'//trim(msgloc)
-          return
-        end if
+      ! 2D nodal coords of the bottom quad surface (first 4 nodes of the elem)
+      do i = 1, NEDGE_SURF
+        botsurf_coords(:,i) = coords(1:2,i)
+      end do
+      
+      !*** check if new crack is admissible w.r.t existing matrix cracks in the ply
+      ! calculate centroid
+      centroid(1) = sum(botsurf_coords(1,:))/NEDGE_SURF
+      centroid(2) = sum(botsurf_coords(2,:))/NEDGE_SURF
+      ! check its admissibility
+      if ( .not. newcrack_ok(matrix_cracks, centroid, ply_angle) ) then
+        nonewcrack = .true.
+        exit loop1
+      end if
+      !*** proceed only if the potential new crack is admissible ***
+      
+      !*** add new crack to the list of matrix cracks ***
+      call add_newcrack(matrix_cracks, centroid)
+      
+      ! update failed to true
+      failed = .true.
+      
+      ! use the crack_elem_centroid2d subroutine to find 2 cross points and 2
+      ! crack edges of the elem, with crack passing elem centroid
+      call crack_elem_centroid2d (nedge = NEDGE_SURF,             &
+      &                     crack_angle = ply_angle,              &
+      &                          coords = botsurf_coords,         &
+      &                  nodes_on_edges = ENDNODES_ON_BOT_EDGES,  &
+      &                           istat = istat,                  &
+      &                            emsg = emsg,                   &
+      &               edge_crack_points = crackpoints,            &
+      &              crack_edge_indices = crackedges)
+      if (istat == STAT_FAILURE) then
+        emsg = trim(emsg)//trim(msgloc)
+        return
+      end if
+      ! extract crack edge indices
+      jbe1 = crackedges(1)
+      jbe2 = crackedges(2)
+      ! check if they are correct
+      if (any(crackedges <= 0) .or. (jbe1 == jbe2)) then
+        istat = STAT_FAILURE
+        emsg  = 'wrong broken edges from centroid'//trim(msgloc)
+        return
       end if
 
   ! elem is TRANSITION ELEM, check subBulks fstat
-  case (TRANSITION_ELEM)
+  case (TRANSITION_ELEM) loop1
       ! check expected no. of cracked edges
       if ( count(elem%edge_status_lcl /= INTACT) /= 1 ) then
         istat = STAT_FAILURE
@@ -1183,7 +1215,7 @@ use global_toolkit_module,  only : crack_elem_centroid2d
 
   ! elem is REFINEMENT/CRACK TIP/CRACK WAKE ELEM,
   ! check subBulks fstat and cohCrack fstat (CRACK WAKE ELEM ONLY)
-  case (REFINEMENT_ELEM, CRACK_TIP_ELEM, CRACK_WAKE_ELEM)
+  case (REFINEMENT_ELEM, CRACK_TIP_ELEM, CRACK_WAKE_ELEM) loop1
       ! check expected no. of cracked edges
       if ( count(elem%edge_status_lcl /= INTACT) /= 2 ) then
         istat = STAT_FAILURE
@@ -1224,12 +1256,19 @@ use global_toolkit_module,  only : crack_elem_centroid2d
         end do
       end if
 
-  case default
+  case default loop1
       istat = STAT_FAILURE
       emsg  = 'unexpected elem curr status in'//trim(msgloc)
       return
 
-  end select
+  end select loop1
+
+  ! **** if nonewcrack is set to true, then element status needs to be updated to
+  ! NO_FAILURE_ONSET, and return
+  if (nonewcrack) then
+    elem%curr_status = NO_FAILURE_ONSET
+    return
+  end if
 
   ! if matrix/fibre/coh failure onset in any intact_elem/subBulk/cohCrack, then:
   ! - update the passed-in nodes array, coords of fl. nodes on jbe1 & jbe2
@@ -1302,12 +1341,12 @@ use global_toolkit_module,  only : crack_elem_centroid2d
       elem%crack_edges(1) = jbe1
       elem%crack_edges(2) = jbe2
       
-      ! update other edges to tie_bcd = true
-      do i = 1, NEDGE_SURF
-        if (i==jbe1 .or. i==jbe2) cycle
-        call update(edges(i),            tie_bcd=.true.)
-        call update(edges(i+NEDGE_SURF), tie_bcd=.true.)
-      end do
+     ! ! update other edges to tie_bcd = true
+     ! do i = 1, NEDGE_SURF
+     !   if (i==jbe1 .or. i==jbe2) cycle
+     !   call update(edges(i),            tie_bcd=.true.)
+     !   call update(edges(i+NEDGE_SURF), tie_bcd=.true.)
+     ! end do
       
     end if
 
