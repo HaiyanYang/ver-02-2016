@@ -191,7 +191,7 @@ contains
     
     close(115)
     
-  end subroutine set_fnm_predelam
+  end subroutine set_fnm_matrix_crack
   
 
 end module input_module

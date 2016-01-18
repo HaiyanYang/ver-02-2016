@@ -2,13 +2,21 @@ MODULE PARAMETER_MODULE ! USEFUL CONSTANTS FOR ALL SUBROUTINES & ALL ELEMENTS
 
 IMPLICIT NONE
 
+!DEFINE REAL NUMBER PRECISION TO BE EQUIVALENT TO F77 DOUBLE PRECISION
+INTEGER, PARAMETER :: DP = SELECTED_REAL_KIND(14)
+
+
+!***** TO-BE-DEFINED PARAMETERS ***********************************************
+
 ! starting jelem no. of abaqus
 INTEGER, SAVE :: JELEM0 = 0
 
 ! MIN CRACK SPACING, DEFINED AT INPUT
-REAL(DP), SAVE :: MIN_CRACK_SPACING = 0.0
+REAL(KIND=DP), SAVE :: MIN_CRACK_SPACING = 0._DP
 
-! COMMON PARAMETERS ************************************************************
+
+
+!***** FIXED PARAMETERS *******************************************************
 
 
 ! DEFINE THE SUPPORTED DIMENSION OF ANALYSIS, NO. OF STRESSES FOR STANDARD AND
@@ -18,10 +26,6 @@ INTEGER, PARAMETER :: NDIM = 3
 INTEGER, PARAMETER :: NST_STANDARD = 6
 INTEGER, PARAMETER :: NST_COHESIVE = 3
 ! ---------------------------------------------------------
-
-
-!DEFINE REAL NUMBER PRECISION TO BE EQUIVALENT TO F77 DOUBLE PRECISION
-INTEGER, PARAMETER :: DP = SELECTED_REAL_KIND(14)
 
 
 ! I/O UNIT NO. FOR MESSAGE FILE
@@ -126,7 +130,7 @@ INTEGER, PARAMETER :: UNBREAKABLE_EDGE = -1
 INTEGER, PARAMETER :: TRANSITION_ELEM   = 1, REFINEMENT_ELEM  = 2,        &
                     & CRACK_TIP_ELEM    = 3, CRACK_WAKE_ELEM  = 4,        &
                     & MATRIX_CRACK_ELEM = 5, FIBRE_FAIL_ELEM  = 15,       &
-                    & NO_FAILURE_ONSET  = -1
+                    & NO_PARTITION  = -1
 !-------------------------------------------------------------------------------
 
 

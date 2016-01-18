@@ -270,7 +270,7 @@ pure subroutine integrate_fBrickPly_elem (elem, nodes, edges, matrix_cracks,   &
 use parameter_module,         only : DP, MSGLENGTH, STAT_SUCCESS, STAT_FAILURE,&
                               & ZERO, ONE, HALF, INTACT, TRANSITION_ELEM,      &
                               & REFINEMENT_ELEM,  CRACK_TIP_ELEM,              &
-                              & CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM, NO_FAILURE_ONSET
+                              & CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM, NO_PARTITION
 use fnode_module,             only : fnode, extract, update
 use fedge_module,             only : fedge, extract
 use matrix_crack_module,      only : ply_crack_list
@@ -360,7 +360,7 @@ use global_toolkit_module,    only : distance
   !       * if its partition is UPDATED by the failure criterion,
   !         newpartition becomes TRUE and re-integrate subelems with NOfailure
   !
-  case (NO_FAILURE_ONSET, INTACT, TRANSITION_ELEM, &
+  case (NO_PARTITION, INTACT, TRANSITION_ELEM, &
   &     REFINEMENT_ELEM, CRACK_TIP_ELEM, CRACK_WAKE_ELEM) elstatuscase
 
       !***** check edge status variables *****
@@ -617,7 +617,7 @@ use parameter_module,      only : NDIM, DP, MSGLENGTH, STAT_SUCCESS, STAT_FAILUR
                           & CRACK_TIP_EDGE,  COH_CRACK_EDGE,                  &
                           & TRANSITION_ELEM, REFINEMENT_ELEM,                 &
                           & CRACK_TIP_ELEM,  CRACK_WAKE_ELEM,                 &
-                          & MATRIX_CRACK_ELEM, NO_FAILURE_ONSET
+                          & MATRIX_CRACK_ELEM, NO_PARTITION
 use fnode_module,          only : fnode, extract, update
 use fedge_module,          only : fedge, extract, update
 use global_toolkit_module, only : crack_elem_cracktip2d
@@ -715,7 +715,7 @@ use global_toolkit_module, only : crack_elem_cracktip2d
   !
   jbe1jbe2: select case (elstatus)
 
-  case (NO_FAILURE_ONSET, INTACT) jbe1jbe2
+  case (NO_PARTITION, INTACT) jbe1jbe2
       ! if elem is INTACT, return of no edge fails; otherwise, find jbe1
       ! as the most critical edge
       if ( count(edge_status(1:NEDGE_SURF) > INTACT) == 0 ) then
@@ -834,7 +834,7 @@ use global_toolkit_module, only : crack_elem_cracktip2d
     ! update edge jbe2 fl. nodes coords when elem was previously intact
     ! (on both surfs)
     if (elem%curr_status == INTACT .or. &
-    &   elem%curr_status == NO_FAILURE_ONSET) then
+    &   elem%curr_status == NO_PARTITION) then
     
       ! update the coords of two fl. nodes on edge jbe2
       ! of both top and bot surfaces, assuming a perpendicular matrix crack
@@ -889,7 +889,7 @@ use global_toolkit_module, only : crack_elem_cracktip2d
     ! update elem partition when changing from intact or trans. elem
     if (elem%curr_status == INTACT          .or. &
     &   elem%curr_status == TRANSITION_ELEM .or. &
-    &   elem%curr_status == NO_FAILURE_ONSET) then
+    &   elem%curr_status == NO_PARTITION) then
       ! update to elem components 
       ! (must be placed after the logical control & before partition)
       elem%curr_status     = elstatus
@@ -1011,7 +1011,7 @@ use parameter_module,       only : DP, NDIM, MSGLENGTH, STAT_SUCCESS, STAT_FAILU
                           & TRANSITION_EDGE, COH_CRACK_EDGE,                  &
                           & TRANSITION_ELEM, REFINEMENT_ELEM,                 &
                           & CRACK_TIP_ELEM,  CRACK_WAKE_ELEM,                 &
-                          & MATRIX_CRACK_ELEM, NO_FAILURE_ONSET
+                          & MATRIX_CRACK_ELEM, NO_PARTITION
 use fnode_module,           only : fnode, extract, update
 use fedge_module,           only : fedge, extract, update
 use matrix_crack_module,    only : ply_crack_list, newcrack_ok, add_newcrack
@@ -1113,7 +1113,7 @@ use global_toolkit_module,  only : crack_elem_centroid2d
 
   loop1: select case (elem%curr_status)
 
-  case (NO_FAILURE_ONSET) loop1
+  case (NO_PARTITION) loop1
       ! element not allow to do failure partition, return directly
       return
 
@@ -1264,9 +1264,9 @@ use global_toolkit_module,  only : crack_elem_centroid2d
   end select loop1
 
   ! **** if nonewcrack is set to true, then element status needs to be updated to
-  ! NO_FAILURE_ONSET, and return
+  ! NO_PARTITION, and return
   if (nonewcrack) then
-    elem%curr_status = NO_FAILURE_ONSET
+    elem%curr_status = NO_PARTITION
     return
   end if
 
@@ -1630,10 +1630,10 @@ pure subroutine integrate_assemble_subelems (elem, nodes, ply_angle, lam_mat, co
 ! Purpose :
 ! integrate and assemble sub element system arrays
 use parameter_module, only : MSGLENGTH, STAT_SUCCESS, STAT_FAILURE,         &
-                      & DP, NDIM, ZERO, ONE, PENALTY_STIFFNESS, INTACT,     &
+                      & DP, NDIM, ZERO, ONE, HALFCIRC, PI, SMALLNUM,        &
+                      & PENALTY_STIFFNESS, INTACT, NO_PARTITION,            &
                       & TRANSITION_ELEM, REFINEMENT_ELEM,   CRACK_TIP_ELEM, &
-                      & CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM, CRACK_TIP_EDGE, &
-                      & HALFCIRC, PI, SMALLNUM
+                      & CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM, CRACK_TIP_EDGE
 use fnode_module,             only : fnode, extract, update
 use lamina_material_module,   only : lamina_material
 use cohesive_material_module, only : cohesive_material
@@ -1689,7 +1689,7 @@ use global_toolkit_module,    only : assembleKF
   !********** select integration procedures based on elem status **********
   select case (elem%curr_status)
 
-  case (INTACT)
+  case (INTACT, NO_PARTITION)
       ! check if intact elem is allocated
       if (.not. allocated(elem%intact_elem)) then
         istat = STAT_FAILURE
