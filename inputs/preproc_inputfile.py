@@ -758,16 +758,27 @@ for pd in predelam:
 #***************************************************************
 #       write matrix_crack
 #*************************************************************** 
-# ask for minimum crack spacing
-minspacing = \
-input('Enter the minimum spacing between two matrix cracks (positive real number):')
-while ( not ( isinstance(minspacing, float) and minspacing > 0.0 ) ):
-    minspacing = \
-    input('Enter the minimum spacing between two matrix cracks (positive real number):')
+## ask for minimum crack spacing
+#minspacing = \
+#input('Enter the minimum spacing between two matrix cracks (positive real number):')
+#while ( not ( isinstance(minspacing, float) and minspacing > 0.0 ) ):
+#    minspacing = \
+#    input('Enter the minimum spacing between two matrix cracks (positive real number):')
+
+# ask for min and max elem sizes
+minl = 0
+while ( not ( isinstance(minl, float) and minl > 0.0 ) ):
+    minl = \
+    input('Enter the minimum element size in the mesh (positive real number):')
+maxl = 0
+while ( not ( isinstance(maxl, float) and maxl >= minl ) ):
+    maxl = \
+    input('Enter the maximum element size in the mesh (real number, >= min_elem_size):')
     
 maxncrack = int(math.sqrt(nelem_p))
 
-fnm_matrix_crack.write(str(minspacing)+' \n')
+#fnm_matrix_crack.write(str(minspacing)+' \n')
+fnm_matrix_crack.write(str(minl)+' '+str(maxl)+' \n')
 fnm_matrix_crack.write(str(nplyblk)+' \n')
 fnm_matrix_crack.write(str(maxncrack)+' \n')
 

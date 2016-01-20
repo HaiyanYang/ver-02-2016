@@ -343,7 +343,7 @@ contains
     ! calculate the length of a
     mag = sqrt(dot_product(a,a))
 
-    if (mag > SMALLNUM) then
+    if (mag > ZERO) then
     ! a is NOT a zero-length vector;
     ! normalize a, update amag (if present) and return
       is_zero_vect = .false.
@@ -495,7 +495,7 @@ contains
     !   ZERO cross point coordinates,
     !   then exit the program
 
-    det_if: if (abs(det) > SMALLNUM) then
+    det_if: if (abs(det) > ZERO) then
     ! intersection possible
 
         ! calculate cross point coordinates
@@ -602,8 +602,8 @@ contains
       ! point is in range of line seg if
       ! xminL <= xp <= xmaxL and
       ! yminL <= yp <= ymaxL
-      if (xminL-SMALLNUM < xp .and. xp < xmaxL+SMALLNUM .and. &
-      &   yminL-SMALLNUM < yp .and. yp < ymaxL+SMALLNUM) then
+      if (xminL <= xp .and. xp <= xmaxL .and. &
+      &   yminL <= yp .and. yp <= ymaxL) then
         in_range = .true.
       else
         in_range = .false.

@@ -26755,7 +26755,7 @@ fnm-1.right_tie, 3, 3
 ** 
 *Step, name=loading, inc=10000
 *Static
-0.001, 3., 0.0001, 0.001
+0.01, 3., 0.001, 0.01
 ** 
 ** BOUNDARY CONDITIONS
 ** 

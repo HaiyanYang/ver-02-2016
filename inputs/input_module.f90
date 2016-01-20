@@ -161,7 +161,7 @@ contains
   
   ! matrix cracks
   subroutine set_fnm_matrix_crack()         
-    use parameter_module,         only: MIN_CRACK_SPACING
+    use parameter_module,         only: MIN_ELEM_SIZE, MAX_ELEM_SIZE
     use matrix_crack_module,      only: set
     use matrix_crack_list_module, only: lam_crack_list 
                                       
@@ -173,8 +173,8 @@ contains
     
     open (unit=115, file=trim(indir)//'fnm_matrix_crack.txt', status='old', action='read')              
 
-    ! read user-input min crack spacing parameter
-    read(115, *) MIN_CRACK_SPACING
+    ! read user-input parameters for min and max elem sizes
+    read(115, *) MIN_ELEM_SIZE, MAX_ELEM_SIZE
     
     ! read no. of plyblocks in the laminate, and maximum no. of cracks possible for each plyblock
     read(115, *) nplyblock

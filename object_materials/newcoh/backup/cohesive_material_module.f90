@@ -92,6 +92,7 @@ end type cohesive_toughness
 type, public :: cohesive_sdv
   private
   real(DP) :: dm    = ZERO,  u0 = ZERO,  uf = ZERO
+  real(DP) :: dml   = ZERO,  u0l= ZERO,  ufl= ZERO
   integer  :: fstat = INTACT
 end type cohesive_sdv
 ! associated procedures: extract, display
@@ -373,10 +374,9 @@ contains
     real(DP) :: dee_lcl(NST,NST)
     real(DP) :: traction_lcl(NST)
     integer  :: fstat
-    real(DP) :: dm, u0, uf, dm_tmp, u_eff
+    real(DP) :: dm, u0, uf, dml, u0l, ufl, dm_tmp
     real(DP) :: d_max_lcl
     logical  :: is_closed_crack, loading
-    integer  :: i
 
 
     !**** initialize intent(out) & local variables ****
@@ -388,8 +388,10 @@ contains
     dm        = ZERO
     u0        = ZERO
     uf        = ZERO
+    dml       = ZERO
+    u0l       = ZERO
+    ufl       = ZERO
     dm_tmp    = ZERO
-    u_eff     = ZERO
     d_max_lcl = ZERO
     is_closed_crack = .false. ! default
     loading   = .false.
@@ -427,6 +429,9 @@ contains
     dm     = sdv%DM
     u0     = sdv%U0
     uf     = sdv%UF
+    dml    = sdv%DML
+    u0l    = sdv%U0L
+    ufl    = sdv%UFL
 
     ! copy max. degradation (if present) into local variable
     if(present(d_max))  then
@@ -515,8 +520,8 @@ contains
 
     ! call cohesive law, calculate damage variables (fstat, dm, u0, uf) based
     ! on this material's properties and current traction and separation vectors
-    call cohesive_law (this_mat, fstat, dm, u0, uf, traction_lcl, separation, &
-    & d_max_lcl, u_eff, istat, emsg)
+    call cohesive_law (this_mat, fstat, dm, u0, uf, dml, u0l, ufl, traction_lcl, separation, &
+    & d_max_lcl, istat, emsg)
 
     ! check if the cohesive law is run successfully;
     ! if not, return (in this case, emsg will show the cause of error)
@@ -557,11 +562,7 @@ contains
         
         ! use tangent D matrix if it is not yet failed and in the loading phase
         if (fstat==COH_MAT_ONSET .and. loading) then
-          !~call offset_deemat_3d (this_mat, dee_lcl, dm, u0, u_eff, is_closed_crack)
-          dee_lcl = ZERO
-          do i = 1, NST
-            dee_lcl(i,i) = ONE
-          end do
+          call offset_deemat_3d (this_mat, dee_lcl, dml, is_closed_crack)
         end if
 
         !**** update intent(inout) dummy args before successful return ****
@@ -571,6 +572,9 @@ contains
         sdv%DM    = dm
         sdv%U0    = u0
         sdv%UF    = uf
+        sdv%DML   = dml
+        sdv%U0L   = u0l
+        sdv%UFL   = ufl
         ! exit the program
         return
 
@@ -579,10 +583,6 @@ contains
       ! just update inout dummy args and exit the program
       case (INTACT)
         !**** update intent(inout) dummy args before successful return ****
-        dee_lcl = ZERO
-        do i = 1, NST
-          dee_lcl(i,i) = ONE
-        end do
         dee       = dee_lcl
         traction  = traction_lcl
         ! sdv remain unchanged
@@ -680,7 +680,7 @@ contains
 
 
 
-  pure subroutine offset_deemat_3d (this_mat, dee, dm, u0, u, is_closed_crack)
+  pure subroutine offset_deemat_3d (this_mat, dee, dm, is_closed_crack)
   ! Purpose:
   ! to calculate local stiffness matrix D
   ! for 3D problem with the standard 3 displacement separations
@@ -692,7 +692,7 @@ contains
     ! - is_closed_crack : true if the crack is closed    passed-in (optional)
     type(cohesive_material), intent(in)    :: this_mat
     real(DP),                intent(inout) :: dee(:,:)
-    real(DP),                intent(in)    :: dm, u0, u
+    real(DP),                intent(in)    :: dm
     logical,                 intent(in)    :: is_closed_crack
 
 
@@ -720,9 +720,9 @@ contains
     
     u_offset = 1000000._DP * u0
     
-    lambda_offset = u / (u_offset + u)
+    !lambda_offset = u / (u_offset + u)
     
-    !lambda_offset = 0.001_DP
+    lambda_offset = 0.001_DP
 
     ! apply fibre degradation if dm is present
     ! degrade normal stiffness if crack is NOT closed
@@ -804,8 +804,8 @@ contains
 
 
 
-  pure subroutine cohesive_law (this_mat, fstat, dm, u0, uf, traction, &
-  & separation, d_max, u_eff, istat, emsg)
+  pure subroutine cohesive_law (this_mat, fstat, dm, u0, uf, dml, u0l, ufl, traction, &
+  & separation, d_max, istat, emsg)
   ! Purpose:
   ! to update cohesive failure status, stiffness degradation factor and
   ! cohesive law variables according to a linear cohesive softening law;
@@ -826,9 +826,9 @@ contains
     type(cohesive_material),  intent(in)    :: this_mat
     integer,                  intent(inout) :: fstat
     real(DP),                 intent(inout) :: dm, u0, uf
+    real(DP),                 intent(inout) :: dml, u0l, ufl
     real(DP),                 intent(in)    :: traction(:), separation(:)
     real(DP),                 intent(in)    :: d_max
-    real(DP),                 intent(out)   :: u_eff
     integer,                  intent(out)   :: istat
     character(len=MSGLENGTH), intent(out)   :: emsg
 
@@ -849,7 +849,8 @@ contains
     real(DP) :: Gnc, Gtc, Glc, alpha
     real(DP) :: Gn,  Gt,  Gl
     real(DP) :: lambda_n, lambda_t, lambda_l
-    real(DP) :: Gmc, T_eff, T0, dm_tmp
+    real(DP) :: Gmc, u_eff, T_eff, T0, dm_tmp
+    real(DP) :: ul_eff, dml_tmp
 
     ! initialize intent(out) & local variables
     u_eff    = ZERO
@@ -863,6 +864,7 @@ contains
     Gn       = ZERO;  Gt       = ZERO;  Gl       = ZERO
     lambda_n = ZERO;  lambda_t = ZERO;  lambda_l = ZERO
     Gmc      = ZERO
+    u_eff    = ZERO
     T_eff    = ZERO;  T0       = ZERO
     dm_tmp   = ZERO
 
@@ -958,6 +960,12 @@ contains
           Gmc = ONE / ( Gmc**(ONE/alpha) )
           ! effective separation at final failure
           uf  = two * Gmc / T0
+          
+          !**** u0l, ufl ****
+          u0l = u0 * 1000.0
+          ufl = u0l - u0 + uf
+          !******************
+          
           ! calculate dm
           if (uf < u0 + SMALLNUM) then
             ! Gmc too small, brittle failure
@@ -989,6 +997,19 @@ contains
           ! update dm only if dm_tmp is larger
           if (dm_tmp > dm) dm = dm_tmp
         end if
+        
+        !**** calculate loading effective separation
+        ul_eff = sqrt( delta_n**2 + delta_t**2 + delta_l**2 )
+        ! go to the cohesive law ONLY when ul_eff is NONZERO
+        if (ul_eff > SMALLNUM) then
+          ! use the defined linear cohesive softening law var. u0l and ufl
+          ! to calculate dml_tmp
+          dml_tmp = (ufl / ul_eff) * (ul_eff-u0l) / (ufl-u0l)
+          ! update dm only if dml_tmp is larger
+          if (dml_tmp > dml) dml = dml_tmp
+        end if        
+        !*******************************************
+        
         ! check dm and update fstat if dm reaches the max
         if (dm > d_max-SMALLNUM) then
             dm    = d_max

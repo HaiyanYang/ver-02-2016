@@ -8,7 +8,7 @@ module matrix_crack_module
 !    ========  ====================  ========================================
 !    15/01/16  B. Y. Chen            Original code
 !
-use parameter_module, only : NDIM, DP, ZERO, PI, HALFCIRC, MIN_CRACK_SPACING
+use parameter_module, only : NDIM, DP, ZERO, PI, HALFCIRC, MIN_ELEM_SIZE, MAX_ELEM_SIZE
 
 implicit none
 
@@ -106,7 +106,11 @@ contains
     do j = 1, crack_list%num_cracks
       crackj   = crack_list%cracks(j)
       distance = abs(dot_product(unit_vect, crackj%coords-point))
-      if (distance < MIN_CRACK_SPACING) then
+      !if (distance < MIN_CRACK_SPACING) then
+      !  ok = .false.
+      !  exit
+      !end if
+      if ( 0.05*MIN_ELEM_SIZE < distance .and. distance < 2.0*MAX_ELEM_SIZE ) then
         ok = .false.
         exit
       end if
