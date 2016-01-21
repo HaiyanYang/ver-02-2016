@@ -515,7 +515,7 @@ contains
 
     ! call cohesive law, calculate damage variables (fstat, dm, u0, uf) based
     ! on this material's properties and current traction and separation vectors
-    call cohesive_law (this_mat, fstat, dm, u0, uf, traction_lcl, separation, &
+    call modeI_cohesive_law (this_mat, fstat, dm, u0, uf, traction_lcl, separation, &
     & d_max_lcl, u_eff, istat, emsg)
 
     ! check if the cohesive law is run successfully;
@@ -557,11 +557,11 @@ contains
         
         ! use tangent D matrix if it is not yet failed and in the loading phase
         if (fstat==COH_MAT_ONSET .and. loading) then
-          !~call offset_deemat_3d (this_mat, dee_lcl, dm, u0, u_eff, is_closed_crack)
-          dee_lcl = ZERO
-          do i = 1, NST
-            dee_lcl(i,i) = ONE
-          end do
+          call offset_deemat_3d (this_mat, dee_lcl, dm, u0, uf, u_eff, is_closed_crack)
+          !~dee_lcl = ZERO
+          !~do i = 1, NST
+          !~  dee_lcl(i,i) = ONE
+          !~end do
         end if
 
         !**** update intent(inout) dummy args before successful return ****
@@ -579,10 +579,10 @@ contains
       ! just update inout dummy args and exit the program
       case (INTACT)
         !**** update intent(inout) dummy args before successful return ****
-        dee_lcl = ZERO
-        do i = 1, NST
-          dee_lcl(i,i) = ONE
-        end do
+        !~dee_lcl = ZERO
+        !~do i = 1, NST
+        !~  dee_lcl(i,i) = ONE
+        !~end do
         dee       = dee_lcl
         traction  = traction_lcl
         ! sdv remain unchanged
@@ -680,7 +680,7 @@ contains
 
 
 
-  pure subroutine offset_deemat_3d (this_mat, dee, dm, u0, u, is_closed_crack)
+  pure subroutine offset_deemat_3d (this_mat, dee, dm, u0, uf, u, is_closed_crack)
   ! Purpose:
   ! to calculate local stiffness matrix D
   ! for 3D problem with the standard 3 displacement separations
@@ -692,7 +692,7 @@ contains
     ! - is_closed_crack : true if the crack is closed    passed-in (optional)
     type(cohesive_material), intent(in)    :: this_mat
     real(DP),                intent(inout) :: dee(:,:)
-    real(DP),                intent(in)    :: dm, u0, u
+    real(DP),                intent(in)    :: dm, u0, uf, u
     logical,                 intent(in)    :: is_closed_crack
 
 
@@ -726,13 +726,18 @@ contains
 
     ! apply fibre degradation if dm is present
     ! degrade normal stiffness if crack is NOT closed
-    if (.not. is_closed_crack) Dnn = Dnn * (ONE - dm) * lambda_offset
-    Dtt = Dtt * (ONE - dm) * lambda_offset
-    Dll = Dll * (ONE - dm) * lambda_offset
+    !~if (.not. is_closed_crack) Dnn = Dnn * (ONE - dm) * lambda_offset
+    !~if (.not. is_closed_crack) Dnn = Dnn * (-u0/(uf-u0))
+    !~if (.not. is_closed_crack) Dnn = 100.0*ONE
+    if (.not. is_closed_crack) Dnn = Dnn * (ONE - dm)
+    !~Dtt = Dtt * (ONE - dm) * lambda_offset
+    !~Dll = Dll * (ONE - dm) * lambda_offset
+    Dtt = Dtt * (ONE - dm)
+    Dll = Dll * (ONE - dm)
     ! do not degrade below residual stiffness
-    if (Dnn < RESIDUAL_MODULUS + SMALLNUM) Dnn = RESIDUAL_MODULUS
-    if (Dtt < RESIDUAL_MODULUS + SMALLNUM) Dtt = RESIDUAL_MODULUS
-    if (Dll < RESIDUAL_MODULUS + SMALLNUM) Dll = RESIDUAL_MODULUS
+    !~if (Dnn < RESIDUAL_MODULUS + SMALLNUM) Dnn = RESIDUAL_MODULUS
+    !~if (Dtt < RESIDUAL_MODULUS + SMALLNUM) Dtt = RESIDUAL_MODULUS
+    !~if (Dll < RESIDUAL_MODULUS + SMALLNUM) Dll = RESIDUAL_MODULUS
 
     ! calculate D matrix terms
     ! zero all terms first
@@ -1006,6 +1011,218 @@ contains
 
 
   end subroutine cohesive_law
+
+
+
+
+  pure subroutine modeI_cohesive_law (this_mat, fstat, dm, u0, uf, traction, &
+  & separation, d_max, u_eff, istat, emsg)
+  ! Purpose:
+  ! to update cohesive failure status, stiffness degradation factor and
+  ! cohesive law variables according to a linear cohesive softening law;
+  ! this is a complex subroutine, istat and emsg are required to flag an
+  ! error when an unexpected logical case is met
+
+    ! dummy argument list:
+    ! - this_mat        : cohesive material object              pass arg.
+    ! - fstat           : failure status                        to update
+    ! - dm              : stiffness degradation factor          to update
+    ! - u0              : cohesive law, u0                      to update
+    ! - uf              : cohesive law, uf                      to update
+    ! - traction        : traction   vector                     passed-in
+    ! - separation      : separation vector                     passed-in
+    ! - d_max           : maximum   degradation factor          passed-in
+    ! - istat           : status variable of this procedure     to output
+    ! - emsg            : error message                         to output
+    type(cohesive_material),  intent(in)    :: this_mat
+    integer,                  intent(inout) :: fstat
+    real(DP),                 intent(inout) :: dm, u0, uf
+    real(DP),                 intent(in)    :: traction(:), separation(:)
+    real(DP),                 intent(in)    :: d_max
+    real(DP),                 intent(out)   :: u_eff
+    integer,                  intent(out)   :: istat
+    character(len=MSGLENGTH), intent(out)   :: emsg
+
+    ! local variables list:
+    ! - tau_n/t/l                 : normal and two shear tractions
+    ! - delta_n/t/l               : normal and two shear separations
+    ! - findex                    : failure index
+    ! - Gnc/tc/lc, alpha          : cohesive toughnesses and power law exponent
+    ! - Gn/t/l                    : normal and two shear strain energy density
+    ! - lambda_n/t/l              : normal and two shear mode ratios
+    ! - Gmc                       : mixed-mode fracture toughness
+    ! - u_eff, T_eff              : effective separation and traction
+    ! - T0                        : effective traction at failure onset
+    ! - dm_tmp                    : temporary dm
+    real(DP) :: tau_n,   tau_t,   tau_l
+    real(DP) :: delta_n, delta_t, delta_l
+    real(DP) :: findex
+    real(DP) :: Gnc, Gtc, Glc, alpha
+    real(DP) :: Gn,  Gt,  Gl
+    real(DP) :: lambda_n, lambda_t, lambda_l
+    real(DP) :: Gmc, T_eff, T0, dm_tmp
+
+    ! initialize intent(out) & local variables
+    u_eff    = ZERO
+    istat    = STAT_SUCCESS
+    emsg     = ''
+    tau_n    = ZERO;  tau_t    = ZERO;  tau_l    = ZERO
+    delta_n  = ZERO;  delta_t  = ZERO;  delta_l  = ZERO
+    findex   = ZERO
+    Gnc      = ZERO;  Gtc      = ZERO;  Glc      = ZERO
+    alpha    = ZERO
+    Gn       = ZERO;  Gt       = ZERO;  Gl       = ZERO
+    lambda_n = ZERO;  lambda_t = ZERO;  lambda_l = ZERO
+    Gmc      = ZERO
+    T_eff    = ZERO;  T0       = ZERO
+    dm_tmp   = ZERO
+
+
+    ! --------------------------------------------------------- !
+    ! the following assumes linear cohesive law
+    ! other types of cohesive law can also be used in the future
+    ! just need to put in a selection criterion and algorithm
+    ! --------------------------------------------------------- !
+    ! e.g.: select case (toughness%CLtype)
+    !           case(0)
+    !               linear
+    !           case(1)
+    !               exponential
+    !           ...
+
+
+    ! extract traction terms
+    tau_n   = max(traction(1), ZERO)
+    !~tau_t   = traction(2)
+    !~tau_l   = traction(3)
+
+    ! extract separation terms
+    delta_n = max(separation(1), ZERO)
+    !~delta_t = separation(2)
+    !~delta_l = separation(3)
+
+    ! extract toughness parameters
+    Gnc    = this_mat%toughness%Gnc
+    !~Gtc    = this_mat%toughness%Gtc
+    !~Glc    = this_mat%toughness%Glc
+    alpha  = this_mat%toughness%alpha
+
+    ! check and update fstat and damage variables
+    !
+    ! possible changes of fstat:
+    !
+    ! INTACT -> failure criterion -> INTACT : no change
+    !                             -> ONSET  : update fstat, u0, uf and dm
+    !                             -> FAILED : update fstat, u0, uf and dm
+    !
+    ! ONSET  -> cohesive law      -> ONSET  : update dm
+    !                             -> FAILED : update fstat and dm
+    !
+    ! so basically, select what to do based in fstat:
+    ! - if it is still INTACT, go to failure criterion, calculate
+    !   u0, uf and dm if failure criterion is met;
+    ! - if it is FAILURE ONSET, go to cohesive law, and update dm
+    !     - if dm is close to ONE, update fstat to be FAILED
+    ! - if it is other value, flag error stat & msg and return
+
+    fstat_select : select case (fstat)
+
+      ! if fstat is still INTACT, then dm, u0, uf have never been updated;
+      ! failure criterion needs to be firstly applied on the traction.
+      ! if failure onset is reached, calculate the cohesive law var. u0 and uf,
+      ! then update fstat, calculate dm (update fstat again if brittle);
+      ! if failure onset is not reached, do nothing, exit
+      case (INTACT) fstat_select
+
+        ! apply failure criterion and calculate failure index (for 3D problems)
+        !~call failure_criterion_3d (this_mat, traction, findex)
+        findex = tau_n/60._DP
+
+        ! check to see if the failure onset criterion is reached;
+        ! if so, update fstat, calculate u0, uf and dm;
+        ! if not, do nothing
+        findex_if: if (findex > ONE-SMALLNUM) then
+          ! update fstat
+          fstat = COH_MAT_ONSET
+          ! the rest calculates u0 and uf based on power law
+          ! normal tension energy density
+          Gn = HALF * tau_n * delta_n
+          !~! transverse shear energy density
+          !~Gt = HALF * tau_t * delta_t
+          !~! longitudinal shear energy density
+          !~Gl = HALF * tau_l * delta_l
+          ! respective mode ratios
+          !~lambda_n = Gn / (Gn + Gt + Gl)
+          !~lambda_t = Gt / (Gn + Gt + Gl)
+          !~lambda_l = Gl / (Gn + Gt + Gl)
+          ! effective separation (could not be ZERO)
+          !~u_eff = sqrt( delta_n**2 + delta_t**2 + delta_l**2 )
+          u_eff = delta_n
+          ! effective traction is calculated such that
+          ! HALF * u_eff * T_eff = total strain energy density
+          !~T_eff = TWO * (Gn + Gt + Gl) / u_eff
+          T_eff = TWO * Gn / u_eff
+          ! effective separation and traction at failure onset,
+          ! adjusted with overshoot
+          u0 = u_eff / findex
+          T0 = T_eff / findex
+          ! mixed mode fracture toughness (power law)
+          !~Gmc = (lambda_n/Gnc)**alpha + &
+          !~    & (lambda_t/Gtc)**alpha + (lambda_l/Glc)**alpha
+          !~Gmc = ONE / ( Gmc**(ONE/alpha) )
+          Gmc = Gnc
+          ! effective separation at final failure
+          uf  = two * Gmc / T0
+          ! calculate dm
+          if (uf < u0 + SMALLNUM) then
+            ! Gmc too small, brittle failure
+            ! update dm and fstat
+            dm    = d_max
+            fstat = COH_MAT_FAILED
+          else
+            ! dm is calculated such that
+            ! the updated tractions just meet the failure criterion
+            dm    = ONE - ONE / findex
+          end if
+        end if findex_if
+
+
+      ! if fstat is already COH_MAT_ONSET, then cohesive law var. u0 and uf must
+      ! have already been defined.
+      ! the only thing to do here is to update dm with respect to separation,
+      ! according to the already-defined cohesive law.
+      ! if dm reaches d_max, update fstat to COH_MAT_FAILED
+      case (COH_MAT_ONSET) fstat_select
+
+        ! calculate effective separation
+        !~u_eff = sqrt( delta_n**2 + delta_t**2 + delta_l**2 )
+        u_eff = delta_n
+        ! go to the cohesive law ONLY when u_eff is NONZERO
+        if (u_eff > SMALLNUM) then
+          ! use the defined linear cohesive softening law var. u0 and uf
+          ! to calculate dm_tmp
+          dm_tmp = (uf / u_eff) * (u_eff-u0) / (uf-u0)
+          ! update dm only if dm_tmp is larger
+          if (dm_tmp > dm) dm = dm_tmp
+        end if
+        ! check dm and update fstat if dm reaches the max
+        if (dm > d_max-SMALLNUM) then
+            dm    = d_max
+            fstat = COH_MAT_FAILED
+        end if
+
+      case default fstat_select
+        ! this case should never be reached; flag error status and msg
+        istat = STAT_FAILURE
+        emsg  = 'unexpected fstat value in cohesive_law, &
+        &cohesive_material_module!'
+        return
+
+    end select fstat_select
+
+
+  end subroutine modeI_cohesive_law
+
 
 
 
