@@ -482,11 +482,12 @@ contains
         ! exit program
         return
 
-      ! when the coh mat is DAMAGED, no need to calculate traction;
-      ! only separation is needed for subsequent cohesive law calculations;
-      ! so do NOTHING
+      ! when the coh mat is DAMAGED, calculate traction for failure criterion
       case (COH_MAT_ONSET)
-        continue
+        ! calculate dee; degrade stiffness
+        call deemat_3d (this_mat, dee_lcl, dm, is_closed_crack)
+        ! calculate traction
+        traction_lcl = matmul(dee_lcl, separation)
 
       ! when the coh mat is INTACT, calculate traction for failure criterion
       case (INTACT)
@@ -568,8 +569,10 @@ contains
         
         ! use small tangent modulus during loading
         if (nloading) dee_lcl(1,1) = RESIDUAL_MODULUS
-        if (tloading) dee_lcl(2,2) = RESIDUAL_MODULUS
-        if (lloading) dee_lcl(3,3) = RESIDUAL_MODULUS
+        ! DO NOT use small tangent for shear: 
+        ! no difference btw +/- shear, so can be volatile
+        !if (tloading) dee_lcl(2,2) = RESIDUAL_MODULUS
+        !if (lloading) dee_lcl(3,3) = RESIDUAL_MODULUS
 
         !**** update intent(inout) dummy args before successful return ****
         dee       = dee_lcl
@@ -843,13 +846,16 @@ contains
         
         if (dm == ZERO) then
           if (tau > tau_c) then
-            dm  = (uf / delta) * (delta-u0) / (uf-u0)
+            dm = (uf / delta) * (delta-u0) / (uf-u0)
+            dm = max(dm, ZERO) 
             if (dm > d_max) then
               dm = d_max
               G  = Gc
             else
               G  = Gc - HALF*(uf-delta)*D*(ONE-dm)*delta
             end if
+          else
+            G = HALF*tau*delta
           end if
         else if (ZERO < dm .and. dm < d_max) then
           dm_tmp = (uf / delta) * (delta-u0) / (uf-u0)
