@@ -15,11 +15,11 @@ use cohesive_material_module, only: set, cohesive_modulus, &
   call set(UDSinglePly_material, & 
   & lamina_modulus(& 
   & E1   =161000.0_dp,& 
-  & E2   =11400.0_dp,& 
-  & G12  =5170.0_dp,& 
-  & G23  =3980.0_dp,& 
-  & nu12 =0.34_dp,& 
-  & nu23 =0.43_dp),& 
+  & E2   =11380.0_dp,& 
+  & G12  =5200.0_dp,& 
+  & G23  =3900.0_dp,& 
+  & nu12 =0.32_dp,& 
+  & nu23 =0.45_dp),& 
   & lamina_strength(& 
   & Xt   =2806.0_dp,& 
   & Xc   =1400.0_dp,& 
@@ -33,32 +33,32 @@ use cohesive_material_module, only: set, cohesive_modulus, &
 
   call set(matrixCrack_material, & 
   & cohesive_modulus(& 
-  & Dnn    =1000000.0_dp,& 
-  & Dtt    =1000000.0_dp,& 
-  & Dll    =1000000.0_dp),& 
+  & Dnn    =160000.0_dp,& 
+  & Dtt    =160000.0_dp,& 
+  & Dll    =160000.0_dp),& 
   & cohesive_strength(& 
   & tau_nc =60.0_dp,& 
   & tau_tc =90.0_dp,& 
   & tau_lc =90.0_dp),& 
   & cohesive_toughness(& 
-  & Gnc    =0.293_dp,& 
-  & Gtc    =0.631_dp,& 
-  & Glc    =0.631_dp,& 
+  & Gnc    =0.212_dp,& 
+  & Gtc    =0.774_dp,& 
+  & Glc    =0.774_dp,& 
   & alpha  =1.0_dp)) 
 
   call set(interface_material, & 
   & cohesive_modulus(& 
-  & Dnn    =1000000.0_dp,& 
-  & Dtt    =1000000.0_dp,& 
-  & Dll    =1000000.0_dp),& 
+  & Dnn    =160000.0_dp,& 
+  & Dtt    =160000.0_dp,& 
+  & Dll    =160000.0_dp),& 
   & cohesive_strength(& 
-  & tau_nc =40.0_dp,& 
-  & tau_tc =50.0_dp,& 
-  & tau_lc =50.0_dp),& 
+  & tau_nc =60.0_dp,& 
+  & tau_tc =90.0_dp,& 
+  & tau_lc =90.0_dp),& 
   & cohesive_toughness(& 
-  & Gnc    =0.293_dp,& 
-  & Gtc    =0.631_dp,& 
-  & Glc    =0.631_dp,& 
+  & Gnc    =0.212_dp,& 
+  & Gtc    =0.774_dp,& 
+  & Glc    =0.774_dp,& 
   & alpha  =1.0_dp)) 
 
 end subroutine set_fnm_materials          

@@ -110,7 +110,7 @@ contains
       !  ok = .false.
       !  exit
       !end if
-      if ( 0.05*MIN_ELEM_SIZE < distance .and. distance < 2.0*MAX_ELEM_SIZE ) then
+      if ( 0.01*MIN_ELEM_SIZE < distance .and. distance < 2.0*MAX_ELEM_SIZE ) then
         ok = .false.
         exit
       end if

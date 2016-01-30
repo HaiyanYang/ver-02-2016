@@ -705,6 +705,8 @@ contains
     real(DP) :: Gn,  Gt,  Gl
     real(DP) :: lambda_n, lambda_t, lambda_l
     real(DP) :: Gmc, u_eff, T_eff, T0, dm_tmp
+    !*** new parameter rf ***
+    real(DP) :: rf
 
     ! initialize intent(out) & local variables
     istat    = STAT_SUCCESS
@@ -719,7 +721,10 @@ contains
     Gmc      = ZERO
     u_eff    = ZERO;  T_eff    = ZERO;  T0       = ZERO
     dm_tmp   = ZERO
-
+    rf = ZERO
+    
+    !**** set rf to half ****
+    rf = 0.5_DP
 
     ! --------------------------------------------------------- !
     ! the following assumes linear cohesive law
@@ -811,7 +816,8 @@ contains
               & (lambda_t/Gtc)**alpha + (lambda_l/Glc)**alpha
           Gmc = ONE / ( Gmc**(ONE/alpha) )
           ! effective separation at final failure
-          uf  = two * Gmc / T0
+          !uf  = two * Gmc / T0
+          uf = TWO*Gmc/(rf*T0) - (ONE-rf)/rf*u0
           ! calculate dm
           if (uf < u0 + SMALLNUM) then
             ! Gmc too small, brittle failure
@@ -840,6 +846,8 @@ contains
           ! use the defined linear cohesive softening law var. u0 and uf
           ! to calculate dm_tmp
           dm_tmp = (uf / u_eff) * (u_eff-u0) / (uf-u0)
+          dm_tmp = ONE - rf*(ONE-dm_tmp)
+          dm_tmp = max(dm_tmp, ONE-rf)
           ! update dm only if dm_tmp is larger
           if (dm_tmp > dm) dm = dm_tmp
         end if
