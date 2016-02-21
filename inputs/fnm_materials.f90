@@ -15,11 +15,11 @@ use cohesive_material_module, only: set, cohesive_modulus, &
   call set(UDSinglePly_material, & 
   & lamina_modulus(& 
   & E1   =161000.0_dp,& 
-  & E2   =11380.0_dp,& 
-  & G12  =5200.0_dp,& 
-  & G23  =3900.0_dp,& 
+  & E2   =11400.0_dp,& 
+  & G12  =5170.0_dp,& 
+  & G23  =3980.0_dp,& 
   & nu12 =0.32_dp,& 
-  & nu23 =0.45_dp),& 
+  & nu23 =0.436_dp),& 
   & lamina_strength(& 
   & Xt   =2806.0_dp,& 
   & Xc   =1400.0_dp,& 

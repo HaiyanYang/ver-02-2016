@@ -481,28 +481,48 @@ for j in range(ja,lenAll):
 #==================================================
 materials = []
 
-# find the line no. of *Material and store in materials
-jmaterials = [j for j,line in enumerate(All_lines) if '*Material' in line]
+# find the line no. of *Material
+jmaterial = next(j for j,line in enumerate(All_lines) if '*Material' in line)
 
 # copy everything of the material
-for jm in jmaterials:
-    for j in range(jm,lenAll):
+for j in range(jmaterial,lenAll):
+    jline = All_lines[j]
+    materials.append(jline)
+    if '**' in jline:
+        break
+
+#==================================================
+# read interaction property section:
+#==================================================
+interaction_props = []
+
+# find the line no. of *Surface Interaction and store
+jinteraction_props = [j for j,line in enumerate(All_lines) if '*Surface Interaction' in line]
+
+# copy everything of the section
+for jintp in jinteraction_props:
+    for j in range(jintp,lenAll):
         jline = All_lines[j]
-        materials.append(jline)
+        interaction_props.append(jline)
         if '**' in jline:
             break
 
 #==================================================
-# read (fixed) boundary section:
+# read initial boundary conditions and interaction:
 #==================================================
-bcds  = []    # list of all boundary conditions
+bcds  = []       # list of all initial boundary conditions
+interaction = [] # the initial interaction
 
-# find the separation line '** -------------'
+# find the first separation line '** -------------' which separates initial step with the 
+# other steps
 jdash = next(j for j,line in enumerate(All_lines) \
 if '** ----------------------------------------------------------------' in line)
 
 # find the lines with *boundary
 jbcds = [j for j in range(0,jdash) if '*Boundary' in All_lines[j]]
+
+# find the line with ** Interaction:
+jinteraction = next(j for j, line in enumerate(All_lines) if '** Interaction:' in line)
 
 # loop over all bcds, store them without modification
 for jb in jbcds:
@@ -511,30 +531,36 @@ for jb in jbcds:
         if ('**' in bline):
             break
         bcds.append(bline)
+        
+# store interaction without modification
+for k in range(jinteraction+1, jdash):
+    iline = All_lines[k]
+    if ('**' in iline):
+        break
+    interaction.append(iline)
+    
 #print(bcds)
 
 
 #==================================================
-# read step
+# read steps and
 # add control parameters
 #==================================================
-step = []
-jstep   = next(j for j, line in enumerate(All_lines) if '*Step' in line)
-joutput = next(j for j, line in enumerate(All_lines) if '** OUTPUT REQUESTS' in line)
-step.extend(All_lines[jstep:joutput])
-# add control parameters
-step.append('*Controls, reset\n')
-step.append('*Controls, parameters=time incrementation\n')
-step.append('3200, 4000, , 6000, 4800, 50, , 125, , , \n')
-step.append('**\n')
+steps  = []
+jsteps = [j for j, line in enumerate(All_lines) if '*Step' in line]
+for jstep in jsteps:
+    for j in range(jstep,lenAll):
+        jline = All_lines[j]
+        if ('*End Step' in jline):
+            # add control parameters
+            steps.append('*Controls, reset\n')
+            steps.append('*Controls, parameters=time incrementation\n')
+            steps.append('3200, 4000, , 6000, 4800, 50, , 125, , , \n')
+            steps.append('**\n')
+            steps.append(jline)
+            break
+        steps.append(jline)
 #print(step)
-
-#==================================================
-# read output
-#==================================================
-output = []
-output.extend(All_lines[joutput:])
-#print(output)
 
    
 
@@ -875,18 +901,22 @@ for aline in assembly:
 #**** write Material ****
 for mline in materials:
     uel_input.write(str(mline[0:]))
+    
+#**** write interaction property ****
+for iline in interaction_props:
+    uel_input.write(str(iline[0:]))
 
-#**** write fixed BCDs ****
+#**** write initial BCDs ****
 for bline in bcds:
     uel_input.write(str(bline[0:]))
-
-#**** write step ****
-for sline in step:
-    uel_input.write(str(sline[0:]))
     
-#**** write output ****
-for oline in output:
-    uel_input.write(str(oline[0:]))
+#**** write initial interaction ****
+for iline in interaction:
+    uel_input.write(str(iline[0:]))
+
+#**** write steps ****
+for sline in steps:
+    uel_input.write(str(sline[0:]))
 
 
 
