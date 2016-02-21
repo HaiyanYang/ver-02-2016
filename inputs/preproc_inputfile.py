@@ -482,14 +482,18 @@ for j in range(ja,lenAll):
 materials = []
 
 # find the line no. of *Material
-jmaterial = next(j for j,line in enumerate(All_lines) if '*Material' in line)
+jmaterials = [j for j,line in enumerate(All_lines) if '*Material' in line]
 
-# copy everything of the material
-for j in range(jmaterial,lenAll):
-    jline = All_lines[j]
-    materials.append(jline)
-    if '**' in jline:
+# copy everything of the material after the 1st line starting with '*Material'
+for ij,jmat in enumerate(jmaterials):
+    # break out if it goes to the 2nd *Material line.
+    if ij == 1:
         break
+    for j in range(jmat,lenAll):
+        jline = All_lines[j]
+        materials.append(jline)
+        if '**' in jline:
+            break
 
 #==================================================
 # read interaction property section:
@@ -522,7 +526,7 @@ if '** ----------------------------------------------------------------' in line
 jbcds = [j for j in range(0,jdash) if '*Boundary' in All_lines[j]]
 
 # find the line with ** Interaction:
-jinteraction = next(j for j, line in enumerate(All_lines) if '** Interaction:' in line)
+jinteraction = [j for j, line in enumerate(All_lines) if '** Interaction:' in line]
 
 # loop over all bcds, store them without modification
 for jb in jbcds:
@@ -533,11 +537,12 @@ for jb in jbcds:
         bcds.append(bline)
         
 # store interaction without modification
-for k in range(jinteraction+1, jdash):
-    iline = All_lines[k]
-    if ('**' in iline):
-        break
-    interaction.append(iline)
+if (len(jinteraction) > 0):
+    for k in range(jinteraction[0]+1, jdash):
+        iline = All_lines[k]
+        if ('**' in iline):
+            break
+        interaction.append(iline)
     
 #print(bcds)
 

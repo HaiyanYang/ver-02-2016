@@ -338,6 +338,21 @@ use global_toolkit_module,    only : distance
     ! if there is a tie_bcd edge, tie_elem is true
     if (tie_bcd) tie_elem = .true.
   end do
+  
+  ! if a tie bcd is specified on this elem, then this elem remains intact, 
+  ! no partition is performed on this elem, go straight to integration, and
+  ! then to edge tie operation
+  if (tie_elem) then
+    ! integrate and assemble sub elems
+    call integrate_assemble_subelems (elem, nodes, ply_angle, lam_mat, coh_mat, &
+    & K_matrix, F_vector, istat, emsg, nofailure)
+    if (istat == STAT_FAILURE) then
+      emsg = trim(emsg)//trim(msgloc)
+      call clean_up (K_matrix, F_vector)
+      return
+    end if
+    goto 10
+  end if
 
   !---------------------------------------------------------------------!
   !********** MAIN CALCULATIONS **********
@@ -472,7 +487,7 @@ use global_toolkit_module,    only : distance
   !---------------------------------------------------------------------!
 
   ! apply constraints on edges with bcd
-  do i = 1, NEDGE
+10  do i = 1, NEDGE
     call extract(edges(i), estat=estat, tie_bcd=tie_bcd)
     ! if this edge is broken and tie_bcd, change the K and F terms of nodes on this edge
     if (estat > INTACT .and. tie_bcd) then
