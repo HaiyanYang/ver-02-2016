@@ -390,16 +390,15 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
       ! obtain b matrix (NST*NDOF) from rearranging terms of gn
       bee = beemat3d (gn, NNODE)
 
+      ! remove the transverse strain terms (selective integration)
+      bee(5:6,:) = ZERO
+
       ! calculate global strains at this ig point, ig_strain
       ig_strain = matmul(bee,u)
 
       ! transfer strain to local coordinates when ply_angle is non-zero
       if(abs(ply_angle) > SMALLNUM) &
       & ig_strain = lcl_strain3d (ig_strain, ply_angle)
-      
-      ! remove the transverse strain terms (selective integration)
-      ig_strain(5) = ZERO
-      ig_strain(6) = ZERO
 
       ! extract sdvs from integration points, ig_sdv_conv/iter
       call extract(ig_points(kig), converged_sdv=ig_sdv_conv, &
@@ -513,6 +512,9 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
 
       ! obtain b matrix (NST*NDOF) from rearranging terms of gn
       bee = beemat3d (gn, NNODE)
+      
+      ! remove the non-transverse strain terms (selective integration)
+      bee(1:4,:) = ZERO
 
       ! calculate global strains at this ig point, ig_strain
       ig_strain = matmul(bee,u)
@@ -520,9 +522,6 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
       ! transfer strain to local coordinates when ply_angle is non-zero
       if(abs(ply_angle) > SMALLNUM) &
       & ig_strain = lcl_strain3d (ig_strain, ply_angle)
-      
-      ! remove the non-transverse strain terms (selective integration)
-      ig_strain(1:4) = ZERO
 
       ! extract sdvs from integration points, ig_sdv_conv/iter
       call extract(ig_points(kig), converged_sdv=ig_sdv_conv, &
