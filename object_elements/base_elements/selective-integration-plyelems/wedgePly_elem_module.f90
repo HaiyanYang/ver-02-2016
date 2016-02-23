@@ -1,36 +1,36 @@
-module brickPly_elem_module
+module wedgePly_elem_module
 !
 !  Purpose:
-!    define a brick element object with lamina material definition
+!    define a wedge element object
 !    with the associated procedures to empty, set, integrate and extract
 !    its components
 !
-!  topological definition of this brick element, local nodal indices:
+!  topological definition of this wedge element, local nodal indices:
 !
-!  8___________________7
-!  |\                  |\
-!  | \                 | \
-!  |  \                |  \
-!  |   \               |   \
-!  |    \              |    \
-!  |     \5____________|_____\6
-!  |______|____________|      |
-! 4\      |   E3      3\      |
-!   \     |             \     |
-!    \    |              \    |
-!   E4\   |             E2\   |
-!      \  |                \  |
-!       \ |                 \ |
-!        \|__________________\|
-!         1         E1        2
+!                     6
+!                    /|\
+!                   / | \
+!                  /  |  \
+!                 /   |   \
+!                /    |    \
+!               /     |     \
+!             4/______|______\5
+!             |       |       |
+!             |      /3\      |
+!             |     /   \     |
+!             |    /     \    |
+!             | E3/     E2\   |
+!             |  /         \  |
+!             | /           \ |
+!             |/_____________\|
+!             1      E1       2
 !
-!  bottom surface nodes (counter-clock vise): 1, 2, 3, 4
-!  top    surface nodes (counter-clock vise): 5, 6, 7, 8
-!  bottom surface edges (counter-clock vise): E1, E2, E3, E4
+!  bottom surface nodes (counter-clock vise): 1, 2, 3
+!  top    surface nodes (counter-clock vise): 4, 5, 6
+!  bottom surface edges (counter-clock vise): E1, E2, E3
 !  end nodes of E1 : 1, 2
 !  end nodes of E2 : 2, 3
-!  end nodes of E3 : 3, 4
-!  end nodes of E4 : 4, 1
+!  end nodes of E3 : 3, 1
 !
 !  Record of revision:
 !    Date      Programmer            Description of change
@@ -39,13 +39,14 @@ module brickPly_elem_module
 !    21/04/15  B. Y. Chen            removed access of glb node/mat lists, 
 !                                    remove ID_matlist, pass mat and nodes arg.
 !                                    to integrate procedure
-!    21/02/16  B. Y. Chen            change to selective integration for transverse
+!    23/02/16  B. Y. Chen            change to selective integration for transverse
 !                                    shear terms
 !
 
-use parameter_module, only : NST => NST_STANDARD, NDIM, DP,                  &
-                      & MSGLENGTH, STAT_SUCCESS, STAT_FAILURE,               &
-                      & ZERO, ONE, EIGHT, ONE_ROOT3, ONE_EIGHTH, SMALLNUM
+use parameter_module, only : NST => NST_STANDARD, NDIM, DP, ZERO, SMALLNUM,    &
+                           & MSGLENGTH, STAT_SUCCESS, STAT_FAILURE,            &
+                           & ONE, HALF, ONE_THIRD, ONE_ROOT3, ONE_SIXTH,       &
+                           & TWO_THIRD, ROOT_THREE_FIFTH, FIVE_54, EIGHT_54
 ! list of external modules used in type definition and other procedures:
 ! global clock module    : needed in element definition, extract and integrate
 ! lamina material module : needed in element definition, extract and integrate
@@ -72,12 +73,11 @@ private
 !          connec can be derived as:
 !          NODE_ON_TOP_EDGE(i,j) = NODES_ON_BOTTOM_EDGES(i,j) + NNODE/2
 !
-integer, parameter :: NIGPOINT=9, NNODE=8, NEDGE_BOTTOM=4, NDOF=NDIM*NNODE
+integer, parameter :: NIGPOINT=7, NNODE=6, NEDGE_BOTTOM=3, NDOF=NDIM*NNODE
 integer, parameter :: NODES_ON_BOTTOM_EDGES(2, NEDGE_BOTTOM) = &
-                    & reshape([ 1,2, 2,3, 3,4, 4,1 ], [2, NEDGE_BOTTOM])
+                    & reshape([ 1,2, 2,3, 3,1 ], [2, NEDGE_BOTTOM])
 
-
-type, public :: brickPly_elem
+type, public :: wedgePly_elem
   private
   ! list of type components:
   ! fstat         : element failure status
@@ -96,12 +96,13 @@ type, public :: brickPly_elem
   real(DP) :: phi           = ZERO
 end type
 
+
 interface integrate
-  module procedure integrate_brickPly_elem
+  module procedure integrate_wedgePly_elem
 end interface
 
 interface extract
-  module procedure extract_brickPly_elem
+  module procedure extract_wedgePly_elem
 end interface
 
 
@@ -116,13 +117,13 @@ contains
 
 
 
-pure subroutine extract_brickPly_elem (elem, fstat, ig_points, stress, strain, df, phi)
+pure subroutine extract_wedgePly_elem (elem, fstat, ig_points, stress, strain, df, phi)
 ! Purpose:
 ! to extract the components of this element
 ! note that the dummy args connec and ig_points are allocatable arrays
 ! because their sizes vary with different element types
 
-  type(brickPly_elem),                          intent(in)  :: elem
+  type(wedgePly_elem),                          intent(in)  :: elem
   integer,                            optional, intent(out) :: fstat
   type(lamina_ig_point), allocatable, optional, intent(out) :: ig_points(:)
   real(DP),                           optional, intent(out) :: stress(NST)
@@ -145,11 +146,11 @@ pure subroutine extract_brickPly_elem (elem, fstat, ig_points, stress, strain, d
   
   if (present(phi))         phi    = elem%phi
 
-end subroutine extract_brickPly_elem
+end subroutine extract_wedgePly_elem
 
 
 
-pure subroutine integrate_brickPly_elem (elem, nodes, ply_angle, material, K_matrix, &
+pure subroutine integrate_wedgePly_elem (elem, nodes, ply_angle, material, K_matrix, &
 & F_vector, istat, emsg, nofailure)
 ! Purpose:
 ! updates K matrix, F vector, integration point stress and strain,
@@ -168,7 +169,7 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
                                       & invert_self3d, beemat3d, lcl_strain3d,&
                                       & glb_dee3d, distance
 
-  type(brickPly_elem),      intent(inout) :: elem
+  type(wedgePly_elem),      intent(inout) :: elem
   type(fnode),              intent(in)    :: nodes(NNODE)
   real(DP),                 intent(in)    :: ply_angle
   type(lamina_material),    intent(in)    :: material
@@ -176,6 +177,7 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
   integer,                  intent(out)   :: istat
   character(len=MSGLENGTH), intent(out)   :: emsg
   logical,        optional, intent(in)    :: nofailure
+
 
   ! local copies of intent(inout) dummy arg./its components:
   ! - elfstat         : elem's fstat
@@ -321,7 +323,7 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
     coords(:,j)              = xj(:)
     u((j-1)*NDIM+1 : j*NDIM) = uj(:)
   end do
-  
+
   !** element characteristic length:
   ! this is the length of the line segment orthogonal to the fibre angle,
   ! and passes the element centroid and crosses two edges of the element.
@@ -354,22 +356,23 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
   ! nofail:
   if (present(nofailure)) nofail = nofailure
 
+  !** other local variables are assigned in the following loop of all ig points
+
+
 
   !**** MAIN CALCULATIONS ****
 
   !**** non-transverse shear terms, selective integration ****
 
   !** integration point variables:
-  ! update ig point xi and weight for first 8 ig points
-  call init_ig_point_nts (ig_xi(:,1:8), ig_weight(1:8))
+  ! update ig point xi and weight
+  call init_ig_point_nts (ig_xi(:,1:6), ig_weight(1:6))
   ! ig_x, u, strain, stress are updated later in the loop
-
-  !** other local variables are assigned in the following loop of all ig points
 
   ! loop over all ig points,
   ! calculate strain, stress, stiffness matrix, sdv etc. at each ig point
 
-  loop_igpoint_nts: do kig = 1, 8
+  loop_igpoint_nts: do kig = 1, 6
 
       ! get values of shape functions and derivatives, fn and dn, at this ig point
       call init_shape (fn, dn, ig_xi(:,kig))
@@ -382,14 +385,14 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
 
       ! invert jac onto itself
       call invert_self3d (jac, istat, emsg, detj)
-      if (istat == STAT_FAILURE) goto 10
+      if (istat == STAT_FAILURE) exit loop_igpoint_nts
 
       ! calculate gradient of shape function matrix, gn
       gn = matmul(dn,jac)
 
       ! obtain b matrix (NST*NDOF) from rearranging terms of gn
       bee = beemat3d (gn, NNODE)
-
+      
       ! remove the transverse strain terms (selective integration)
       bee(5:6,:) = ZERO
 
@@ -421,7 +424,7 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
       ! failure is allowed, use ddsdde_lamina
         call ddsdde (material, dee=dee, stress=ig_stress, sdv=ig_sdv_iter, &
         & strain=ig_strain, clength=clength, istat=istat, emsg=emsg)
-        if (istat == STAT_FAILURE) goto 10
+        if (istat == STAT_FAILURE) exit loop_igpoint_nts
       end if
 
       ! get D matrix in global coordinates
@@ -451,8 +454,8 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
       eldf = max(eldf, ig_df)
 
       ! update elem stress & strain (avg of ig point stress & strains)
-      elstress = elstress + ig_stress/real(8, DP)
-      elstrain = elstrain + ig_strain/real(8, DP)
+      elstress = elstress + ig_stress/real(6, DP)
+      elstrain = elstrain + ig_strain/real(6, DP)
 
       ! empty relevant arrays for reuse
       fn  = ZERO
@@ -471,22 +474,26 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
       ig_df    =ZERO
       ig_phi   =ZERO
 
-  end do loop_igpoint_nts !-looped over all int points. ig=8
-  
-  
-  !**** transverse shear terms (selective integration)
-  
-  !** integration point variables:
-  ! update ig point xi and weight (single point integration)
-  call init_ig_point_ts (ig_xi(:,9), ig_weight(9))
-  ! ig_x, u, strain, stress are updated later in the loop
+  end do loop_igpoint_nts !-looped over all int points. ig=NIGPOINT
 
-  !** other local variables are assigned in the following loop of all ig points
+  ! check to see if the loop is exited upon error
+  if (istat == STAT_FAILURE) then
+    call clean_up (K_matrix, F_vector)
+    return
+  end if
+  
+  
+  !**** transverse shear terms, selective integration ****
+
+  !** integration point variables:
+  ! update ig point xi and weight
+  call init_ig_point_ts (ig_xi(:,7), ig_weight(7))
+  ! ig_x, u, strain, stress are updated later in the loop
 
   ! loop over all ig points,
   ! calculate strain, stress, stiffness matrix, sdv etc. at each ig point
 
-  loop_igpoint_ts: do kig = 9, 9
+  loop_igpoint_ts: do kig = 7, 7
 
       ! get values of shape functions and derivatives, fn and dn, at this ig point
       call init_shape (fn, dn, ig_xi(:,kig))
@@ -499,7 +506,7 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
 
       ! invert jac onto itself
       call invert_self3d (jac, istat, emsg, detj)
-      if (istat == STAT_FAILURE) goto 10
+      if (istat == STAT_FAILURE) exit loop_igpoint_ts
 
       ! calculate gradient of shape function matrix, gn
       gn = matmul(dn,jac)
@@ -538,7 +545,7 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
       ! failure is allowed, use ddsdde_lamina
         call ddsdde (material, dee=dee, stress=ig_stress, sdv=ig_sdv_iter, &
         & strain=ig_strain, clength=clength, istat=istat, emsg=emsg)
-        if (istat == STAT_FAILURE) goto 10
+        if (istat == STAT_FAILURE) exit loop_igpoint_ts
       end if
 
       ! get D matrix in global coordinates
@@ -588,14 +595,13 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
       ig_df    =ZERO
       ig_phi   =ZERO
 
-  end do loop_igpoint_ts
+  end do loop_igpoint_ts !-looped over all int points. ig=NIGPOINT
 
   ! check to see if the loop is exited upon error
-10  if (istat == STAT_FAILURE) then
+  if (istat == STAT_FAILURE) then
     call clean_up (K_matrix, F_vector)
     return
-  end if 
-   
+  end if
 
   !**** END MAIN CALCULATIONS ****
 
@@ -610,10 +616,10 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
   elem%strain      = elstrain
   elem%local_clock = local_clock
   elem%ig_points   = ig_points
-
+  
   return
-  
-  
+
+
   contains 
   ! internal procedures
   
@@ -624,7 +630,7 @@ use global_toolkit_module,       only : crack_elem_centroid2d, determinant3d, &
       F_vector = ZERO
     end subroutine clean_up
 
-end subroutine integrate_brickPly_elem
+end subroutine integrate_wedgePly_elem
 
 
 
@@ -649,35 +655,36 @@ end subroutine integrate_brickPly_elem
 
 pure subroutine init_ig_point_nts (xi, wt)
 ! used parameters:
-! ZERO, EIGHT, ONE_ROOT3, ONE
+! ZERO, HALF, ONE_THIRD, ONE_ROOT3, ONE_SIXTH, TWO_THIRD, ROOT_THREE_FIFTH,
+! FIVE_54, EIGHT_54
 
-  real(DP), intent(inout) :: xi(NDIM,8), wt(8)
+  real(DP), intent(inout) :: xi(NDIM,6), wt(6)
 
-      xi(1,1)= -ONE_ROOT3
-      xi(2,1)= -ONE_ROOT3
-      xi(3,1)= -ONE_ROOT3
-      xi(1,2)=  ONE_ROOT3
-      xi(2,2)= -ONE_ROOT3
-      xi(3,2)= -ONE_ROOT3
-      xi(1,3)= -ONE_ROOT3
-      xi(2,3)=  ONE_ROOT3
-      xi(3,3)= -ONE_ROOT3
-      xi(1,4)=  ONE_ROOT3
-      xi(2,4)=  ONE_ROOT3
-      xi(3,4)= -ONE_ROOT3
-      xi(1,5)= -ONE_ROOT3
-      xi(2,5)= -ONE_ROOT3
-      xi(3,5)=  ONE_ROOT3
-      xi(1,6)=  ONE_ROOT3
-      xi(2,6)= -ONE_ROOT3
-      xi(3,6)=  ONE_ROOT3
-      xi(1,7)= -ONE_ROOT3
-      xi(2,7)=  ONE_ROOT3
-      xi(3,7)=  ONE_ROOT3
-      xi(1,8)=  ONE_ROOT3
-      xi(2,8)=  ONE_ROOT3
-      xi(3,8)=  ONE_ROOT3
-      wt = ONE
+  xi(1,1) =   ONE_SIXTH
+  xi(2,1) =   ONE_SIXTH
+  xi(3,1) = - ONE_ROOT3
+
+  xi(1,2) =   TWO_THIRD
+  xi(2,2) =   ONE_SIXTH
+  xi(3,2) = - ONE_ROOT3
+
+  xi(1,3) =   ONE_SIXTH
+  xi(2,3) =   TWO_THIRD
+  xi(3,3) = - ONE_ROOT3
+
+  xi(1,4) =   ONE_SIXTH
+  xi(2,4) =   ONE_SIXTH
+  xi(3,4) =   ONE_ROOT3
+
+  xi(1,5) =   TWO_THIRD
+  xi(2,5) =   ONE_SIXTH
+  xi(3,5) =   ONE_ROOT3
+
+  xi(1,6) =   ONE_SIXTH
+  xi(2,6) =   TWO_THIRD
+  xi(3,6) =   ONE_ROOT3
+
+  wt      =   ONE_SIXTH
 
 end subroutine init_ig_point_nts
 
@@ -685,77 +692,70 @@ end subroutine init_ig_point_nts
 
 pure subroutine init_ig_point_ts (xi, wt)
 ! used parameters:
-! ZERO, EIGHT, ONE_ROOT3, ONE
+! ZERO, HALF, ONE_THIRD, ONE_ROOT3, ONE_SIXTH, TWO_THIRD, ROOT_THREE_FIFTH,
+! FIVE_54, EIGHT_54
 
   real(DP), intent(inout) :: xi(NDIM), wt
 
-      xi(1)= ZERO
-      xi(2)= ZERO
-      xi(3)= ZERO
-      wt = EIGHT
+  xi(1) = ONE_THIRD
+  xi(2) = ONE_THIRD
+  xi(3) = ZERO
+
+  wt    = ONE
 
 end subroutine init_ig_point_ts
 
 
 
-pure subroutine init_shape (f, df, ig_xi)
+pure subroutine init_shape (f, df, igxi)
 ! used parameters:
-! ZERO, ONE_EIGHTH, ONE
+! ZERO, HALF, ONE
 
-    real(DP), intent(inout)  :: f(NNODE),df(NNODE,NDIM)
-    real(DP), intent(in)     :: ig_xi(NDIM)
+    real(DP), intent(inout) :: f(NNODE), df(NNODE,NDIM)
+    real(DP), intent(in)    :: igxi(NDIM)
 
     ! local variables
-    real(DP) :: xi, eta, zeta 
-    
+    real(DP) :: xi, eta, zeta
+
     xi   = ZERO
     eta  = ZERO
     zeta = ZERO
 
-    xi   = ig_xi(1)
-    eta  = ig_xi(2)
-    zeta = ig_xi(3)
+    xi   = igxi(1)
+    eta  = igxi(2)
+    zeta = igxi(3)
 
-    f(1)=ONE_EIGHTH*(ONE-xi)*(ONE-eta)*(ONE-zeta)
-    f(2)=ONE_EIGHTH*(ONE+xi)*(ONE-eta)*(ONE-zeta)
-    f(3)=ONE_EIGHTH*(ONE+xi)*(ONE+eta)*(ONE-zeta)
-    f(4)=ONE_EIGHTH*(ONE-xi)*(ONE+eta)*(ONE-zeta)
-    f(5)=ONE_EIGHTH*(ONE-xi)*(ONE-eta)*(ONE+zeta)
-    f(6)=ONE_EIGHTH*(ONE+xi)*(ONE-eta)*(ONE+zeta)
-    f(7)=ONE_EIGHTH*(ONE+xi)*(ONE+eta)*(ONE+zeta)
-    f(8)=ONE_EIGHTH*(ONE-xi)*(ONE+eta)*(ONE+zeta)
+    f(1) = HALF * (ONE-xi-eta) * (ONE-zeta)
+    f(2) = HALF * xi * (ONE-zeta)
+    f(3) = HALF * eta * (ONE-zeta)
+    f(4) = HALF * (ONE-xi-eta) * (ONE+zeta)
+    f(5) = HALF * xi * (ONE+zeta)
+    f(6) = HALF * eta * (ONE+zeta)
 
-    df(1,1) = -ONE_EIGHTH*(ONE-eta)*(ONE-zeta)
-    df(2,1) =  ONE_EIGHTH*(ONE-eta)*(ONE-zeta)
-    df(3,1) =  ONE_EIGHTH*(ONE+eta)*(ONE-zeta)
-    df(4,1) = -ONE_EIGHTH*(ONE+eta)*(ONE-zeta)
-    df(5,1) = -ONE_EIGHTH*(ONE-eta)*(ONE+zeta)
-    df(6,1) =  ONE_EIGHTH*(ONE-eta)*(ONE+zeta)
-    df(7,1) =  ONE_EIGHTH*(ONE+eta)*(ONE+zeta)
-    df(8,1) = -ONE_EIGHTH*(ONE+eta)*(ONE+zeta)
+    df(1,3) = -HALF * (ONE-xi-eta)
+    df(2,3) = -HALF * xi
+    df(3,3) = -HALF * eta
+    df(4,3) =  HALF * (ONE-xi-eta)
+    df(5,3) =  HALF * xi
+    df(6,3) =  HALF * eta
 
-    df(1,2) = -ONE_EIGHTH*(ONE-xi)*(ONE-zeta)
-    df(2,2) = -ONE_EIGHTH*(ONE+xi)*(ONE-zeta)
-    df(3,2) =  ONE_EIGHTH*(ONE+xi)*(ONE-zeta)
-    df(4,2) =  ONE_EIGHTH*(ONE-xi)*(ONE-zeta)
-    df(5,2) = -ONE_EIGHTH*(ONE-xi)*(ONE+zeta)
-    df(6,2) = -ONE_EIGHTH*(ONE+xi)*(ONE+zeta)
-    df(7,2) =  ONE_EIGHTH*(ONE+xi)*(ONE+zeta)
-    df(8,2) =  ONE_EIGHTH*(ONE-xi)*(ONE+zeta)
+    df(1,1) = -HALF * (ONE-zeta)
+    df(2,1) =  HALF * (ONE-zeta)
+    df(3,1) =  ZERO
+    df(4,1) = -HALF * (ONE+zeta)
+    df(5,1) =  HALF * (ONE+zeta)
+    df(6,1) =  ZERO
 
-    df(1,3) = -ONE_EIGHTH*(ONE-xi)*(ONE-eta)
-    df(2,3) = -ONE_EIGHTH*(ONE+xi)*(ONE-eta)
-    df(3,3) = -ONE_EIGHTH*(ONE+xi)*(ONE+eta)
-    df(4,3) = -ONE_EIGHTH*(ONE-xi)*(ONE+eta)
-    df(5,3) =  ONE_EIGHTH*(ONE-xi)*(ONE-eta)
-    df(6,3) =  ONE_EIGHTH*(ONE+xi)*(ONE-eta)
-    df(7,3) =  ONE_EIGHTH*(ONE+xi)*(ONE+eta)
-    df(8,3) =  ONE_EIGHTH*(ONE-xi)*(ONE+eta)
-
+    df(1,2) = -HALF * (ONE-zeta)
+    df(2,2) =  ZERO
+    df(3,2) =  HALF * (ONE-zeta)
+    df(4,2) = -HALF * (ONE+zeta)
+    df(5,2) =  ZERO
+    df(6,2) =  HALF * (ONE+zeta)
 
 end subroutine init_shape
 
 
 
 
-end module brickPly_elem_module
+end module wedgePly_elem_module
