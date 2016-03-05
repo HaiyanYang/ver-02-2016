@@ -215,8 +215,8 @@ for jp in jparts:
         jpend  = next( j for j in range(jp,lenAll) if '*End Part'in All_lines[j] )
         jnode  = next( j for j in range(jp,jpend)  if '*Node'    in All_lines[j] )
         jelems =     [ j for j in range(jp,jpend)  if '*Element' in All_lines[j] ]
-        jnsets =     [ j for j in range(jp,jpend)  if '*Nset'    in All_lines[j] ]
-        jlsets =     [ j for j in range(jp,jpend)  if '*Elset'   in All_lines[j] ]
+        jnsets =     [ j for j in range(jp,jpend)  if '*Nset'    in All_lines[j] and 'internal' not in All_lines[j] ]
+        jlsets =     [ j for j in range(jp,jpend)  if '*Elset'   in All_lines[j] and 'internal' not in All_lines[j] ]
         
         # report error if multiple elem defs exist in this fnm part
         if (len(jelems) != 1):

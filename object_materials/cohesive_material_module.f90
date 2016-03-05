@@ -100,7 +100,7 @@ end type cohesive_sdv
 ! this module
 
 ! cohesive material object definition
-type,public :: cohesive_material
+type, public :: cohesive_material
   private
   type(cohesive_modulus)   :: modulus
   type(cohesive_strength)  :: strength
@@ -129,6 +129,10 @@ interface empty
   module procedure empty_cohesive_ig_point
 end interface empty
 
+interface precrack
+  module procedure precrack_cohesive
+end interface precrack
+
 interface set
   module procedure set_cohesive
 end interface set
@@ -154,7 +158,7 @@ interface extract
 end interface extract
 
 
-public :: empty, set, display, ddsdde, update, extract
+public :: empty, precrack, set, display, ddsdde, update, extract
 
 
 
@@ -230,6 +234,20 @@ contains
     this%toughness = cohesive_toughness (ZERO, ZERO, ZERO, ZERO)
 
   end subroutine empty_cohesive
+  
+  
+  
+  pure subroutine precrack_cohesive (this)
+  ! Purpose:
+  ! to reduce the cohesive strengths & toughness to very small values, so as to
+  ! simulate a precrack condition
+
+    type(cohesive_material), intent(inout) :: this
+
+    this%strength  = cohesive_strength  (SMALLNUM, SMALLNUM, SMALLNUM)
+    this%toughness = cohesive_toughness (SMALLNUM, SMALLNUM, SMALLNUM, ONE)
+
+  end subroutine precrack_cohesive
 
 
 

@@ -276,7 +276,7 @@ use fnode_module,             only : fnode
 use fedge_module,             only : fedge
 use matrix_crack_module,      only : ply_crack_list
 use lamina_material_module,   only : lamina_material, lamina_scaled_Gfc
-use cohesive_material_module, only : cohesive_material
+use cohesive_material_module, only : cohesive_material, precrack
 use fBrickPly_elem_module,    only : extract, integrate
 use fCoh8Delam_elem_module,   only : extract, update, integrate
 use global_toolkit_module,    only : assembleKF
@@ -302,6 +302,7 @@ use global_toolkit_module,    only : assembleKF
   type(fnode)              :: plyblknds(NNODE_PLYBLK), interfnds(NNODE_INTERF)
   type(fedge)              :: plyblkegs(NEDGE)
   type(lamina_material)    :: plyblklam_mat
+  type(cohesive_material)  :: interfcoh_mat
   real(DP)                 :: theta1, theta2
   real(DP), allocatable    :: Ki(:,:), Fi(:)
   logical                  :: topsurf_set, botsurf_set
@@ -419,8 +420,13 @@ use global_toolkit_module,    only : assembleKF
   
     loop_interfs: do i = 1, ninterfs
     
-      ! skip this interf elem if it is a precrack
-      if ( i == predelam ) cycle
+      ! set interfcoh_mat to passed-in default 
+      interfcoh_mat = interf_mat
+    
+      ! if it is a precrack, update interfcoh_mat using the precrack procedure
+      if ( i == predelam ) then
+        call precrack(interfcoh_mat)
+      end if
     
       !----- update edge status -----
       ! extract status of this interface
@@ -460,7 +466,7 @@ use global_toolkit_module,    only : assembleKF
       theta1 = layup(i  )%angle
       theta2 = layup(i+1)%angle
       ! integrate this interf elem and update its nodes
-      call integrate (elem%interfs(i), interfnds, interf_mat, theta1, theta2,   &
+      call integrate (elem%interfs(i), interfnds, interfcoh_mat, theta1, theta2,   &
       & Ki, Fi, istat, emsg)
       if (istat == STAT_FAILURE) exit loop_interfs
       ! assemble this elem's K and F
