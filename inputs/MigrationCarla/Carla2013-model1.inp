@@ -10830,16 +10830,16 @@ _botsurf_S1, S1
 ** Section: CompositeLayup-1-1
 *Solid Section, elset=CompositeLayup-1-1, composite, orientation=Ori-1, stack direction=3, layup=CompositeLayup-1
 0.0833333, 1, Material-1, 0., Ply-1
-0.0833333, 1, Material-1, 45., Ply-2
-0.0833333, 1, Material-1, -45., Ply-3
+0.0833333, 1, Material-1, -45., Ply-2
+0.0833333, 1, Material-1, 45., Ply-3
 0.0833333, 1, Material-1, 90., Ply-4
 0.0833333, 1, Material-1, 90., Ply-5
-0.0833333, 1, Material-1, -45., Ply-6
-0.0833333, 1, Material-1, 45., Ply-7
+0.0833333, 1, Material-1, 45., Ply-6
+0.0833333, 1, Material-1, -45., Ply-7
 0.0833333, 1, Material-1, 0., Ply-8
 0.0833333, 1, Material-1, 0., Ply-9
-0.0833333, 1, Material-1, -45., Ply-10
-0.0833333, 1, Material-1, 45., Ply-11
+0.0833333, 1, Material-1, 45., Ply-10
+0.0833333, 1, Material-1, -45., Ply-11
 0.0833333, 1, Material-1, 90., Ply-12
 *End Part
 **  
@@ -32976,20 +32976,20 @@ _botsurf_S1, S1
     1,  3534,     1
 ** Section: CompositeLayup-1-1
 *Solid Section, elset=CompositeLayup-1-1, composite, orientation=Ori-1, stack direction=3, layup=CompositeLayup-1
-0.0666667, 1, Material-1, -45., Ply-1
-0.0666667, 1, Material-1, 45., Ply-2
+0.0666667, 1, Material-1, 45., Ply-1
+0.0666667, 1, Material-1, -45., Ply-2
 0.0666667, 1, Material-1, 0., Ply-3
 0.0666667, 1, Material-1, 0., Ply-4
-0.0666667, 1, Material-1, 45., Ply-5
-0.0666667, 1, Material-1, -45., Ply-6
+0.0666667, 1, Material-1, -45., Ply-5
+0.0666667, 1, Material-1, 45., Ply-6
 0.0666667, 1, Material-1, 90., Ply-7
 0.0666667, 1, Material-1, 90., Ply-8
-0.0666667, 1, Material-1, 45., Ply-9
-0.0666667, 1, Material-1, -45., Ply-10
+0.0666667, 1, Material-1, -45., Ply-9
+0.0666667, 1, Material-1, 45., Ply-10
 0.0666667, 1, Material-1, 0., Ply-11
 0.0666667, 1, Material-1, 0., Ply-12
-0.0666667, 1, Material-1, -45., Ply-13
-0.0666667, 1, Material-1, 45., Ply-14
+0.0666667, 1, Material-1, 45., Ply-13
+0.0666667, 1, Material-1, -45., Ply-14
 0.0666667, 1, Material-1, 90., Ply-15
 *End Part
 **  

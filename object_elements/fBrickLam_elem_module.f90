@@ -59,7 +59,7 @@ contains
 
 
 
-pure subroutine extract_fBrickLam_elem (elem, elnodes, stress, strain, tau, delta, df, dm, dd)
+pure subroutine extract_fBrickLam_elem (elem, elnodes, stress, strain, tau, delta, df, dm, dd, phi)
 use parameter_module,       only: NST_STANDARD, NST_COHESIVE, DP, ZERO
 use fBrickPly_elem_module,  only: extract
 use fCoh8Delam_elem_module, only: extract
@@ -73,6 +73,7 @@ use fCoh8Delam_elem_module, only: extract
   real(DP), allocatable, intent(out) :: df(:)
   real(DP), allocatable, intent(out) :: dm(:)
   real(DP), allocatable, intent(out) :: dd(:)
+  real(DP), allocatable, intent(out) :: phi(:)
 
   integer,  allocatable :: bulks_nodes(:,:)
   integer,  allocatable :: crack_nodes(:)
@@ -82,6 +83,7 @@ use fCoh8Delam_elem_module, only: extract
   real(DP)              :: crack_tau(NST_COHESIVE)
   real(DP)              :: crack_delta(NST_COHESIVE)
   real(DP)              :: crack_dm
+  real(DP)              :: crack_phi
   
   integer :: nplyblk, ninterf, nel, i, j, iel, nsub
   
@@ -91,7 +93,7 @@ use fCoh8Delam_elem_module, only: extract
   !---- calculate no. of elems ------
   nel = 0
   do i = 1, nplyblk
-    ! extract nulk elems nodes and coh crack nodes
+    ! extract bulk elems nodes and coh crack nodes
     call extract(elem%plyblks(i), bulks_nodes=bulks_nodes, crack_nodes=crack_nodes)
     ! update elem count with bulk elems of this plyblk
     nel = nel + size(bulks_nodes(1,:))
@@ -110,6 +112,7 @@ use fCoh8Delam_elem_module, only: extract
   allocate(df(nel))
   allocate(dm(nel))
   allocate(dd(nel))
+  allocate(phi(nel))
   elnodes = 0
   stress  = ZERO
   strain  = ZERO
@@ -118,16 +121,17 @@ use fCoh8Delam_elem_module, only: extract
   df      = ZERO
   dm      = ZERO
   dd      = ZERO
+  phi     = ZERO
   
   !---- set initial elem index ----
   iel = 0
   
   !---- extract from all subelems of plyblks ----
   do i = 1, nplyblk
-    ! extract nulk elems and coh crack info
+    ! extract bulk elems and coh crack info
     call extract(elem%plyblks(i), bulks_nodes=bulks_nodes, crack_nodes=crack_nodes,&
     & bulks_stress=bulks_stress, bulks_strain=bulks_strain, bulks_df=bulks_df,     &
-    & crack_tau=crack_tau, crack_delta=crack_delta, crack_dm=crack_dm)
+    & crack_tau=crack_tau, crack_delta=crack_delta, crack_dm=crack_dm, crack_phi=crack_phi)
     ! copy bulk subelem values to arg. arrays
     nsub = size(bulks_nodes(1,:))
     do j = 1, nsub
@@ -135,23 +139,24 @@ use fCoh8Delam_elem_module, only: extract
     end do
     stress( : , iel+1 : iel+nsub) = bulks_stress(:,:)
     strain( : , iel+1 : iel+nsub) = bulks_strain(:,:)
-    tau(    : , iel+1 : iel+nsub) = ZERO
-    delta(  : , iel+1 : iel+nsub) = ZERO
+    !tau(    : , iel+1 : iel+nsub) = ZERO
+    !delta(  : , iel+1 : iel+nsub) = ZERO
     df(iel+1 : iel+nsub) = bulks_df(:)
-    dm(iel+1 : iel+nsub) = ZERO
-    dd(iel+1 : iel+nsub) = ZERO
+    !dm(iel+1 : iel+nsub) = ZERO
+    !dd(iel+1 : iel+nsub) = ZERO
     ! update elem index
     iel = iel + nsub
     ! copy coh crack subelem values to arg. arrays
     if (allocated(crack_nodes)) then
       elnodes(: , iel+1)  = elem%plyblks_nodes(i)%array( crack_nodes(:) )
-      stress( : , iel+1) = ZERO
-      strain( : , iel+1) = ZERO
+      !stress( : , iel+1) = ZERO
+      !strain( : , iel+1) = ZERO
       tau(    : , iel+1) = crack_tau
       delta(  : , iel+1) = crack_delta
-      df(iel+1) = ZERO
+      !df(iel+1) = ZERO
       dm(iel+1) = crack_dm
-      dd(iel+1) = ZERO
+      !dd(iel+1) = ZERO
+      phi(iel+1)= crack_phi
       ! update elem index
       iel = iel + 1
     end if
@@ -163,12 +168,12 @@ use fCoh8Delam_elem_module, only: extract
       ! extract interf info
       call extract(elem%interfs(i),delam_dm_avg=dd(iel+1))
       elnodes(: , iel+1) = elem%interfs_nodes(i)%array(1:8)
-      stress( : , iel+1) = ZERO
-      strain( : , iel+1) = ZERO
-      tau(    : , iel+1) = ZERO
-      delta(  : , iel+1) = ZERO
-      df(iel+1) = ZERO
-      dm(iel+1) = ZERO
+      !stress( : , iel+1) = ZERO
+      !strain( : , iel+1) = ZERO
+      !tau(    : , iel+1) = ZERO
+      !delta(  : , iel+1) = ZERO
+      !df(iel+1) = ZERO
+      !dm(iel+1) = ZERO
       ! update elem index
       iel = iel + 1
     end do

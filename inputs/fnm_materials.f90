@@ -33,9 +33,9 @@ use cohesive_material_module, only: set, cohesive_modulus, &
 
   call set(matrixCrack_material, & 
   & cohesive_modulus(& 
-  & Dnn    =160000.0_dp,& 
-  & Dtt    =160000.0_dp,& 
-  & Dll    =160000.0_dp),& 
+  & Dnn    =2000000.0_dp,& 
+  & Dtt    =2000000.0_dp,& 
+  & Dll    =2000000.0_dp),& 
   & cohesive_strength(& 
   & tau_nc =60.0_dp,& 
   & tau_tc =90.0_dp,& 

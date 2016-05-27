@@ -257,7 +257,7 @@ use fBrickLam_elem_module, only: extract
   write(outunit,'(a)')'LOOKUP_TABLE default'
   
   ! wflag = 'dm' would allow the wfLam subroutine to write out all 
-  ! cohesive degradation factors of all cohesive sub elems in the mesh
+  ! cohesive degradation factors of all matrix crack coh elems in the mesh
   call wfLam('dm')
   
   
@@ -267,9 +267,20 @@ use fBrickLam_elem_module, only: extract
   write(outunit,'(a)')'SCALARS dd float'
   write(outunit,'(a)')'LOOKUP_TABLE default'
   
-  ! wflag = 'dm' would allow the wfLam subroutine to write out all 
-  ! cohesive degradation factors of all cohesive sub elems in the mesh
+  ! wflag = 'dd' would allow the wfLam subroutine to write out all 
+  ! cohesive degradation factors of all delamination coh elems in the mesh
   call wfLam('dd')
+  
+  
+  ! -----------------------------------------------------------------!
+  !                     write matrix crack angle
+  ! -----------------------------------------------------------------! 
+  write(outunit,'(a)')'SCALARS phi float'
+  write(outunit,'(a)')'LOOKUP_TABLE default'
+  
+  ! wflag = 'phi' would allow the wfLam subroutine to write out all 
+  ! matrix crack angles w.r.t vertical dir. of all matrix cracks
+  call wfLam('phi')
   
   
   close(outunit)
@@ -292,6 +303,7 @@ use fBrickLam_elem_module, only: extract
       real(DP), allocatable :: df(:)
       real(DP), allocatable :: dm(:)
       real(DP), allocatable :: dd(:)
+      real(DP), allocatable :: phi(:)
       
       integer :: nfLam, nfl, nsub, i
       
@@ -299,7 +311,7 @@ use fBrickLam_elem_module, only: extract
     
       do nfl = 1, nfLam
     
-          call extract(elem_list(nfl), elnodes, stress, strain, tau, delta, df, dm, dd)
+          call extract(elem_list(nfl), elnodes, stress, strain, tau, delta, df, dm, dd, phi)
           
           !*** debug check ***
           if (.not.allocated(elnodes)) then
@@ -339,6 +351,11 @@ use fBrickLam_elem_module, only: extract
           
           if (.not.allocated(dd)) then
             write(MSG_FILE,*)'dd is NOT allocated in output'
+            CALL EXIT_FUNCTION
+          end if
+          
+          if (.not.allocated(phi)) then
+            write(MSG_FILE,*)'phi is NOT allocated in output'
             CALL EXIT_FUNCTION
           end if
           
@@ -386,6 +403,8 @@ use fBrickLam_elem_module, only: extract
                 call wscalar(dm(i))
             case('dd')
                 call wscalar(dd(i))
+            case('phi')
+                call wscalar(phi(i))
             end select
           end do
           

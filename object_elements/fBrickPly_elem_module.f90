@@ -148,8 +148,9 @@ end subroutine set_fBrickPly_elem
 
 
 
-pure subroutine extract_fBrickPly_elem (elem, curr_status, edge_status_lcl, phi, &
-& bulks_nodes, crack_nodes, bulks_stress, bulks_strain, bulks_df, crack_tau, crack_delta, crack_dm)
+pure subroutine extract_fBrickPly_elem (elem, curr_status, edge_status_lcl,  &
+& bulks_nodes, crack_nodes, bulks_stress, bulks_strain, bulks_df, crack_tau, &
+& crack_delta, crack_dm, crack_phi)
 ! used for output of this elem
 use brickPly_elem_module,   only : extract
 use abstPly_elem_module,    only : extract
@@ -158,7 +159,6 @@ use coh8Crack_elem_module,  only : extract
   type(fBrickPly_elem), intent(in)  :: elem
   integer,    optional, intent(out) :: curr_status
   integer,    optional, intent(out) :: edge_status_lcl(NEDGE_SURF)
-  real(DP),   optional, intent(out) :: phi
   integer, allocatable, optional, intent(out) :: bulks_nodes(:,:)
   integer, allocatable, optional, intent(out) :: crack_nodes(:)
   real(DP),allocatable, optional, intent(out) :: bulks_stress(:,:)
@@ -167,14 +167,13 @@ use coh8Crack_elem_module,  only : extract
   real(DP),             optional, intent(out) :: crack_tau(NST_COHESIVE)
   real(DP),             optional, intent(out) :: crack_delta(NST_COHESIVE)
   real(DP),             optional, intent(out) :: crack_dm
+  real(DP),             optional, intent(out) :: crack_phi
   
   integer :: nsub, i, subnnd
   
   if(present(curr_status))     curr_status     = elem%curr_status
 
   if(present(edge_status_lcl)) edge_status_lcl = elem%edge_status_lcl
-  
-  if(present(phi))             phi             = elem%phi
   
   if(present(bulks_nodes)) then
     ! if subBulks are present, then assign their nodes to bulks_nodes array
@@ -260,6 +259,9 @@ use coh8Crack_elem_module,  only : extract
       call extract(elem%cohCrack, dm=crack_dm)
     end if
   end if
+  
+  if(present(crack_phi)) crack_phi = elem%phi
+  
 
 end subroutine extract_fBrickPly_elem
 
