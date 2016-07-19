@@ -221,7 +221,7 @@ use fCoh8Delam_subelem_module, only : set
   ! if the intact sub elem has already failed, return directly
   if (allocated(elem%intact_elem)) then
     call extract(elem%intact_elem, dm=dm_intact)
-    if (dm_intact >= ONE-SMALLNUM) return
+    if (dm_intact == ONE) return
   end if
 
   istat  = STAT_SUCCESS
